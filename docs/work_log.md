@@ -310,3 +310,17 @@ The previous implementation rebuilt corpus statistics for every query and direct
 ### Decision and verification
 
 The updated 42-configuration evaluation recommends `220/0` for the current corpus: 93.3% hit@1, 100% hit@3, MRR `0.967`, and 14 chunks. The former `100/20` setting has 86.7% hit@1 and MRR `0.922` with 36 chunks under RRF. Benchmark readings are machine-dependent; one run recorded a 12.433 ms index build, 0.289 ms mean repeated query, and 40.0 KiB peak traced allocation. `./scripts/run_tests.sh` reports 35 passed. Top-k, citation, refusal, and final evidence scripts pass with current chunk IDs and RRF outputs.
+
+## Phase 3: Traceable Chunk Metadata and Stable IDs
+
+### What changed
+
+Chunks now store source ID, section, and exact start/end offsets into the original text. IDs use `source_id@start:end`, so they do not depend on chunk list order. Added `extract_source_span()` to verify a cited passage against its original source. References now include section and character offsets.
+
+### Why
+
+An ID alone was not enough to locate or verify source material. Character offsets let a reader inspect the original passage and make citation checks independent of displayed chunk order. The splitter now preserves source whitespace inside a chunk so offsets point to the exact original text.
+
+### Decision and verification
+
+Offsets are zero-based Python Unicode code-point indices with an exclusive end. Tests cover Unicode text, exact source extraction, repeated passages, and stable IDs when an unrelated document is added. Editing text before a span can change its ID and requires regenerating citations. `./scripts/run_tests.sh` reports 39 passed; citation and final-evidence checks pass with IDs such as `doc-5@0:195`.

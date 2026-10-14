@@ -24,6 +24,7 @@ def test_supported_answer_separates_body_and_references() -> None:
     assert "\n\nReferences:\n" in result.answer
     for citation in result.citations:
         assert result.answer.count(f"[{citation}]") == 2
+    assert "source characters" in result.answer
 
 
 def test_build_grounded_answer_refuses_unsupported_query() -> None:

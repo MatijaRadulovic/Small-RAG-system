@@ -61,7 +61,10 @@ def build_grounded_answer(
         chunk_id = item.chunk.chunk_id
         citations.append(chunk_id)
         supporting_points.append(f"- {item.chunk.text} [{chunk_id}]")
-        references.append(f"- [{chunk_id}] {item.chunk.title}")
+        references.append(
+            f"- [{chunk_id}] {item.chunk.title}; section {item.chunk.section}; "
+            f"source characters {item.chunk.start_offset}-{item.chunk.end_offset}"
+        )
 
     answer = (
         "Answer:\n"

@@ -118,4 +118,4 @@ Use `docs/homework-checklist.md` as submission guidance.
 
 ## Learn how retrieval works
 
-See [`docs/rag_retrieval_guide.md`](docs/rag_retrieval_guide.md) for a beginner-friendly explanation of boundary-aware chunking, BM25 scoring, content/title rank fusion, top-k retrieval, and grounding checks.
+See [`docs/rag_retrieval_guide.md`](docs/rag_retrieval_guide.md) for a beginner-friendly explanation of boundary-aware chunking, source offsets, BM25 scoring, content/title rank fusion, top-k retrieval, and grounding checks.

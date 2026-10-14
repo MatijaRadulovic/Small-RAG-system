@@ -6,6 +6,8 @@ class Document:
     doc_id: str
     title: str
     text: str
+    source_id: str | None = None
+    section: str | None = None
 
 
 def load_default_corpus() -> list[Document]:

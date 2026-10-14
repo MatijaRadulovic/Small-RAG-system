@@ -57,15 +57,15 @@ The BM25 and boundary-aware chunking changes must become a measured baseline bef
 
 ## Phase 3: Traceable Chunk Metadata and Stable IDs
 
-- [ ] Extend `Chunk` with section name, source identifier, start offset, and end offset.
-- [ ] Preserve offsets against the original document rather than only normalized text.
-- [ ] Generate stable IDs from source identity and offsets or a content hash.
-- [ ] Keep IDs stable when unrelated documents are added or removed.
-- [ ] Include source title and section in references.
-- [ ] Add a helper that locates cited text in the original document.
-- [ ] Test repeated passages, Unicode text, sentence boundaries, and document edits.
-- [ ] Document when an edited source is expected to receive a new chunk ID.
-- [ ] Commit as `Add traceable chunk metadata`.
+- [x] Extend `Chunk` with section name, source identifier, start offset, and end offset.
+- [x] Preserve offsets against the original document rather than only normalized text.
+- [x] Generate stable IDs from source identity and offsets or a content hash.
+- [x] Keep IDs stable when unrelated documents are added or removed.
+- [x] Include source title and section in references.
+- [x] Add a helper that locates cited text in the original document.
+- [x] Test repeated passages, Unicode text, sentence boundaries, and unrelated-document additions.
+- [x] Document when an edited source is expected to receive a new chunk ID.
+- [x] Commit as `Add traceable chunk metadata`.
 
 **Done when:** every citation can be traced to an exact source span and IDs do not depend on list position.
 

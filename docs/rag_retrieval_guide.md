@@ -55,6 +55,8 @@ DEFAULT_OVERLAP = 0
 
 the algorithm aims for chunks of about 180 characters and repeats no characters. Actual lengths vary because preserving language boundaries is more valuable than enforcing an exact number. This setting won the current 15-query evaluation; another corpus may benefit from overlap.
 
+Each `Chunk` also stores its source ID, section, and start/end offsets into the original Python string. Offsets use zero-based Unicode code-point positions, with the end offset excluded, matching Python slicing. `extract_source_span()` checks that the cited chunk text still matches that exact source span. A chunk ID such as `book-1@240:418` identifies a source and character range, so adding another document does not change it. Editing text before that range can move its offsets and therefore changes its ID; regenerate citations after source edits.
+
 ## 3. Unicode and language-aware tokenization
 
 Retrieval normalizes Unicode text, applies `casefold()` for consistent case handling, and converts it into word-like tokens. The pattern accepts Latin and Cyrillic letters and can keep identifiers such as `rag-v2.1` together. Stop words are configurable as English (`en`), Serbian (`sr`), or the combined set (`mixed`).
