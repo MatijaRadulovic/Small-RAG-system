@@ -146,3 +146,34 @@ refusal recall           1.000     1.000  +0.000
 `python3 -m scripts.check_hybrid --offline-embeddings` passes five local probes: synonym paraphrase, English paraphrase, exact version identifier, Serbian query to English text, and mixed Serbian/English query. In one cached CPU run, `python3 -m scripts.benchmark_hybrid --offline-embeddings --repeats 3` measured `291 ms` index build, `66.68 ms` average warm query and `76.33 ms` p95 over 21 queries. The 14-chunk vector matrix has a 21 KiB float32 lower bound; the cached model uses `240.5 MiB`, process peak RSS was `696.8 MiB`, and Python traced peak was `27.7 MiB`. The model initialization reading was `8.41 s`; runtime measures vary by machine.
 
 Current unit suite: `./scripts/run_tests.sh` reports 57 passed in `0.12s`.
+
+## RAG Improvement Phase 8: Candidate Reranking
+
+The optional English cross-encoder is `Xenova/ms-marco-MiniLM-L-6-v2`. It receives the whole question and each passage from the first-stage candidate set; retrieval results retain both first-stage and reranker scores. The current corpus has 14 chunks, so `--candidate-k 14` evaluates all current chunks before returning a diverse top three. Install `requirements-embeddings.txt`; the initial model load needs a download, and later runs can use the populated cache offline.
+
+Command: `PYTHONPATH=. /tmp/rag-week6-phase7/bin/python -m scripts.compare_evaluation --split heldout --baseline-mode hybrid --candidate-mode hybrid --baseline-size 220 --baseline-overlap 0 --candidate-size 220 --candidate-overlap 0 --candidate-rerank --candidate-k 14 --embedding-cache /tmp/rag-week6-embedding-cache`
+
+```text
+metric                 hybrid  hybrid + reranker  delta
+recall_at_k             1.000       1.000          +0.000
+mrr                     0.929       1.000          +0.071
+ndcg_at_k               0.947       1.000          +0.053
+span_recall_at_k        0.929       0.929          +0.000
+span_mrr                0.762       0.929          +0.167
+citation_precision      1.000       1.000          +0.000
+citation_recall         0.250       0.250          +0.000
+refusal_precision       0.375       0.375          +0.000
+refusal_recall          1.000       1.000          +0.000
+```
+
+Latency command: `PYTHONPATH=. /tmp/rag-week6-phase7/bin/python -m scripts.benchmark_reranking --candidate-k 14 --cache-dir /tmp/rag-week6-embedding-cache --offline`
+
+```text
+heldout_queries=10 candidates_mean=14.0
+index_build_ms=272.00
+reranker_load_ms=222.09
+first_stage_retrieval_ms mean=22.58 p95=36.99
+cross_encoder_reranking_ms mean=167.45 p95=188.17
+```
+
+The held-out ranking gain supports keeping reranking as an opt-in mode; the added ~167 ms average cross-encoder scoring cost is visible and can be avoided by leaving `--rerank` off. Timings depend on hardware, and ten held-out questions are only a small regression set. `./scripts/run_tests.sh` reports 61 passed in `0.08s`.

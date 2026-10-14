@@ -6,6 +6,7 @@ from .embeddings import DEFAULT_EMBEDDING_MODEL, FastEmbedProvider
 from .hybrid_retrieval import HybridRetriever
 from .rag import build_grounded_answer
 from .retrieval import BM25Index
+from .reranking import DEFAULT_RERANKER_MODEL, FastEmbedReranker, RerankingRetriever
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,7 +43,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--offline-embeddings",
         action="store_true",
-        help="Require the embedding model to already exist in its cache",
+        help="Require selected embedding/reranker models to already exist in cache",
+    )
+    parser.add_argument("--rerank", action="store_true", help="Rerank a broader candidate set")
+    parser.add_argument(
+        "--candidate-k",
+        type=int,
+        default=20,
+        help="First-stage candidate count to send to the optional reranker",
+    )
+    parser.add_argument(
+        "--reranker-model",
+        default=DEFAULT_RERANKER_MODEL,
+        help="FastEmbed cross-encoder model used with --rerank",
     )
     parser.add_argument(
         "--max-per-source",
@@ -81,6 +94,16 @@ def main() -> None:
         index = HybridRetriever(chunks, provider, language=args.language)
     else:
         index = BM25Index(chunks, language=args.language)
+    if args.rerank:
+        try:
+            reranker = FastEmbedReranker(
+                args.reranker_model,
+                cache_dir=args.embedding_cache,
+                local_files_only=args.offline_embeddings,
+            )
+        except RuntimeError as error:
+            raise SystemExit(str(error)) from error
+        index = RerankingRetriever(index, reranker, candidate_k=args.candidate_k)
     result = build_grounded_answer(
         args.question,
         index,
@@ -94,6 +117,8 @@ def main() -> None:
     print(result.answer)
     print("\nCorpus profile:", args.corpus_profile)
     print("Retrieval mode:", args.retrieval_mode)
+    if args.rerank:
+        print("Reranker:", args.reranker_model, f"(candidate_k={args.candidate_k})")
     print("\nRefused:", result.refused)
     print("Citations:", ", ".join(result.citations) if result.citations else "None")
 

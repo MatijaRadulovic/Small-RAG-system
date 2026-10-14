@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from .chunking import Chunk
 from .hybrid_retrieval import HybridRetriever
 from .retrieval import BM25Index, RetrievalResult, retrieve_top_k, tokenize
+from .reranking import RerankingRetriever
 
 
 REFUSAL_MESSAGE = "I do not have enough grounded evidence in the provided corpus to answer that question."
@@ -73,16 +74,20 @@ def has_sufficient_evidence(
 
 def build_grounded_answer(
     question: str,
-    chunks: list[Chunk] | BM25Index | HybridRetriever,
+    chunks: list[Chunk] | BM25Index | HybridRetriever | RerankingRetriever,
     top_k: int = 2,
     language: str | None = None,
     max_per_source: int | None = 2,
 ) -> RagAnswer:
     effective_language = (
         language
-        or (chunks.language if isinstance(chunks, (BM25Index, HybridRetriever)) else "en")
+        or (
+            chunks.language
+            if isinstance(chunks, (BM25Index, HybridRetriever, RerankingRetriever))
+            else "en"
+        )
     )
-    if isinstance(chunks, HybridRetriever):
+    if isinstance(chunks, (HybridRetriever, RerankingRetriever)):
         results = chunks.retrieve_top_k(
             question,
             k=top_k,

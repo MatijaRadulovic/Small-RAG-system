@@ -18,6 +18,12 @@ from src.evaluation import (
 from src.hybrid_retrieval import HybridRetriever
 from src.rag import build_grounded_answer
 from src.retrieval import BM25Index, RetrievalResult, retrieve_top_k
+from src.reranking import (
+    DEFAULT_RERANKER_MODEL,
+    FastEmbedReranker,
+    Reranker,
+    RerankingRetriever,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,6 +37,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
     parser.add_argument("--embedding-cache")
     parser.add_argument("--offline-embeddings", action="store_true")
+    parser.add_argument("--rerank", action="store_true")
+    parser.add_argument("--candidate-k", type=int, default=20)
+    parser.add_argument("--reranker-model", default=DEFAULT_RERANKER_MODEL)
     parser.add_argument("--details", action="store_true", help="Print per-question outcomes")
     return parser.parse_args()
 
@@ -57,6 +66,8 @@ def evaluate_cases(
     details: bool = False,
     retrieval_mode: str = "lexical",
     embedding_provider: EmbeddingProvider | None = None,
+    reranker: Reranker | None = None,
+    candidate_k: int = 20,
 ) -> dict[str, float | int]:
     if top_k <= 0:
         raise ValueError("top_k must be > 0")
@@ -72,6 +83,8 @@ def evaluate_cases(
         index = BM25Index(chunks)
     else:
         raise ValueError("retrieval_mode must be 'lexical' or 'hybrid'")
+    if reranker is not None:
+        index = RerankingRetriever(index, reranker, candidate_k=candidate_k)
 
     recalls: list[float] = []
     reciprocal_ranks: list[float] = []
@@ -86,7 +99,7 @@ def evaluate_cases(
     for case in cases:
         results = (
             index.retrieve_top_k(case.question, k=top_k)
-            if isinstance(index, HybridRetriever)
+            if isinstance(index, (HybridRetriever, RerankingRetriever))
             else retrieve_top_k(case.question, index, k=top_k)
         )
         retrieved_doc_ids = [item.chunk.doc_id for item in results]
@@ -215,11 +228,21 @@ def main() -> None:
             if args.retrieval_mode == "hybrid"
             else None
         ),
+        reranker=(
+            FastEmbedReranker(
+                args.reranker_model,
+                cache_dir=args.embedding_cache,
+                local_files_only=args.offline_embeddings,
+            )
+            if args.rerank
+            else None
+        ),
+        candidate_k=args.candidate_k,
     )
     print(
         f"RAG evaluation: {args.split}; {metrics['case_count']} cases; "
         f"chunk={args.chunk_size}/{args.overlap}; k={args.top_k}; "
-        f"mode={args.retrieval_mode}"
+        f"mode={args.retrieval_mode}; rerank={args.rerank}"
     )
     if metrics["answerable_count"]:
         print(

@@ -224,3 +224,17 @@ python3 -m src.cli --retrieval-mode hybrid --question "What does the generator d
 ```
 
 The first run downloads the model; later runs can require cached files with `--offline-embeddings`. If the optional dependency or cached model is absent, lexical mode remains available. The held-out evaluation currently improves source-span Recall@3 from `0.786` to `0.929` while keeping document Recall@3, citation, and refusal metrics unchanged. Reproduce with `python3 -m scripts.compare_evaluation --split heldout --baseline-mode lexical --candidate-mode hybrid --baseline-size 220 --candidate-size 220 --baseline-overlap 0 --candidate-overlap 0`. Run `python3 -m scripts.check_hybrid` for synonym, paraphrase, exact-ID, Serbian, and mixed-language probes, and `python3 -m scripts.benchmark_hybrid` for local runtime and memory measurements.
+
+## 13. Optional cross-encoder reranking
+
+Hybrid retrieval first finds a broad candidate set using BM25 and embeddings. A cross-encoder then reads the complete question and each candidate passage together and scores how well that passage answers that question. This costs more than comparing precomputed vectors, so it is an optional second stage. `RerankingRetriever` keeps the first-stage score and the reranker score separately, sorts by the latter, and then applies duplicate and per-source limits before the answer stage sees the results.
+
+The current local model is `Xenova/ms-marco-MiniLM-L-6-v2`, an English MS MARCO reranker supported by FastEmbed. Its documented package is about 0.08 GB and Apache 2.0; select a different model if the corpus or questions are not English. See the [FastEmbed model list](https://qdrant.github.io/fastembed/examples/Supported_Models/) and [model card](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2).
+
+```bash
+python3 -m src.cli --retrieval-mode hybrid --rerank --candidate-k 14 --question "What does the generator do with retrieved passages?"
+python3 -m scripts.compare_evaluation --split heldout --baseline-mode hybrid --candidate-mode hybrid --baseline-size 220 --candidate-size 220 --baseline-overlap 0 --candidate-overlap 0 --candidate-rerank --candidate-k 14
+python3 -m scripts.benchmark_reranking --candidate-k 14
+```
+
+On the ten held-out cases, reranking all 14 current chunks kept Recall@3 at `1.000` and source-span Recall@3 at `0.929`, while MRR improved `0.929`→`1.000`, nDCG `0.947`→`1.000`, and source-span MRR `0.762`→`0.929`. In one cached CPU run, first-stage query retrieval averaged `22.58 ms` (p95 `36.99 ms`) and cross-encoder scoring averaged `167.45 ms` (p95 `188.17 ms`); model loading took `222 ms` from the local cache. The gain is promising on this small English set and adds measurable query cost; it is not a broad quality guarantee. Keep lexical or hybrid retrieval without reranking when that cost is not appropriate.

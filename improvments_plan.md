@@ -130,15 +130,15 @@ The current answer decision checks the best result and may include weaker lower-
 
 ## Phase 8: Candidate Reranking
 
-- [ ] Retrieve a broader candidate set, initially 10–20 chunks.
-- [ ] Select a reranker suitable for the supported languages and available hardware.
-- [ ] Rerank candidates using the complete question and chunk text.
-- [ ] Send only the best diverse, evidence-qualified chunks to the answer stage.
-- [ ] Make reranking optional through configuration.
-- [ ] Record reranker score and latency separately from first-stage retrieval.
-- [ ] Compare accuracy gains with added runtime cost.
-- [ ] Keep reranking only if held-out evaluation shows a useful improvement.
-- [ ] Commit as `Add optional retrieval reranking`.
+- [x] Retrieve a broader candidate set, initially 10–20 chunks.
+- [x] Select a reranker suitable for the supported languages and available hardware.
+- [x] Rerank candidates using the complete question and chunk text.
+- [x] Send only the best diverse, evidence-qualified chunks to the answer stage.
+- [x] Make reranking optional through configuration.
+- [x] Record reranker score and latency separately from first-stage retrieval.
+- [x] Compare accuracy gains with added runtime cost.
+- [x] Keep reranking only if held-out evaluation shows a useful improvement.
+- [x] Commit as `Add optional retrieval reranking`.
 
 **Done when:** reranking produces a measured quality gain that justifies its latency and complexity.
 
@@ -194,7 +194,7 @@ The current answer decision checks the best result and may include weaker lower-
 
 ### Milestone B: Hybrid retrieval
 
-- [ ] Complete Phases 7–8.
+- [x] Complete Phases 7–8.
 - [ ] Demonstrate a held-out improvement for paraphrases and semantic matches.
 
 ### Milestone C: Grounded generation

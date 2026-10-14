@@ -209,6 +209,8 @@ class RetrievalResult:
     semantic_score: float | None = None
     lexical_rank: int | None = None
     semantic_rank: int | None = None
+    rerank_score: float | None = None
+    first_stage_score: float | None = None
 
 
 class _BM25Field:
@@ -405,6 +407,8 @@ def _select_diverse_results(
             semantic_score=item.semantic_score,
             lexical_rank=item.lexical_rank,
             semantic_rank=item.semantic_rank,
+            rerank_score=item.rerank_score,
+            first_stage_score=item.first_stage_score,
             redundancy=redundancy,
             diversity_score=1.0 - redundancy,
         )

@@ -70,6 +70,7 @@ python3 -m scripts.evaluate_rag --split heldout --details
 python3 -m scripts.compare_evaluation --split heldout --candidate-size 100 --candidate-overlap 20
 python3 -m scripts.check_hybrid
 python3 -m scripts.benchmark_hybrid
+python3 -m scripts.benchmark_reranking --offline --cache-dir PATH
 ```
 
 These commands compare chunking configurations, validate retrieval, citation, and refusal behavior, and generate the final evidence pair.
@@ -81,12 +82,13 @@ The versioned evaluation questions are in `data/rag_eval_v1.jsonl`; split defini
 python3 -m src.cli --question "What is retrieval augmented generation?"
 python3 -m src.cli --top-k 4 --max-per-source 2 --question "How do citations work?"
 python3 -m src.cli --retrieval-mode hybrid --question "What does the generator do with retrieved passages?"
+python3 -m src.cli --retrieval-mode hybrid --rerank --candidate-k 14 --question "What does the generator do with retrieved passages?"
 python3 -m src.cli --question "Who won the world cup in 1958?"
 python3 -m src.cli --corpus-profile training-rag --question "Why are citations important in RAG?"
 python3 -m src.cli --language sr --question "Koji dokument sadrži relevantne podatke?"
 ```
 
-Hybrid mode is optional. Install its local ONNX runtime with `python3 -m pip install -r requirements-embeddings.txt`. The first hybrid run downloads the configured model; later runs can use `--offline-embeddings` and `--embedding-cache PATH`.
+Hybrid retrieval and cross-encoder reranking are optional. Install their local ONNX runtime with `python3 -m pip install -r requirements-embeddings.txt`. The first run downloads selected models; later runs can use `--offline-embeddings` and `--embedding-cache PATH`. Reranking scores a broader first-stage candidate set (`--candidate-k`) against the full question, then returns the highest-scoring diverse chunks. See `docs/rag_retrieval_guide.md` for evaluation and latency measurements.
 
 ## Corpus profiles
 
