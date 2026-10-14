@@ -1,5 +1,5 @@
 from src.chunking import Chunk
-from src.retrieval import lexical_score, retrieve_top_k
+from src.retrieval import bm25_scores, lexical_score, retrieve_top_k
 
 
 def test_retrieve_top_k_orders_by_score_desc() -> None:
@@ -54,3 +54,54 @@ def test_retrieve_top_k_uses_title_as_a_small_relevance_signal() -> None:
     ]
     results = retrieve_top_k("chunking context", chunks, k=2)
     assert results[0].chunk.chunk_id == "a"
+
+
+def test_bm25_gives_rare_terms_more_weight() -> None:
+    chunks = [
+        Chunk(chunk_id="a", doc_id="1", title="A", text="common common raretoken"),
+        Chunk(chunk_id="b", doc_id="2", title="B", text="common common common"),
+        Chunk(chunk_id="c", doc_id="3", title="C", text="raretoken appears"),
+    ]
+    scores = bm25_scores("raretoken", chunks)
+    assert scores[0] > scores[1]
+    assert scores[2] > 0
+
+
+def test_bm25_repeated_term_gain_saturates() -> None:
+    chunks = [
+        Chunk(chunk_id="a", doc_id="1", title="A", text="signal"),
+        Chunk(chunk_id="b", doc_id="2", title="B", text="signal signal"),
+        Chunk(chunk_id="c", doc_id="3", title="C", text="other words"),
+    ]
+    scores = bm25_scores("signal", chunks)
+    assert scores[1] > scores[0]
+    assert scores[1] < scores[0] * 2
+
+
+def test_bm25_normalizes_for_chunk_length() -> None:
+    chunks = [
+        Chunk(chunk_id="a", doc_id="1", title="A", text="rareterm"),
+        Chunk(
+            chunk_id="b",
+            doc_id="2",
+            title="B",
+            text="rareterm " + "filler " * 40,
+        ),
+        Chunk(chunk_id="c", doc_id="3", title="C", text="other content"),
+    ]
+    scores = bm25_scores("rareterm", chunks)
+    assert scores[0] > scores[1]
+
+
+def test_bm25_handles_empty_queries_and_corpora() -> None:
+    chunk = Chunk(chunk_id="a", doc_id="1", title="A", text="some content")
+    assert bm25_scores("the and", [chunk]) == [0.0]
+    assert bm25_scores("query", []) == []
+
+
+def test_bm25_returns_zero_for_unrelated_query() -> None:
+    chunks = [
+        Chunk(chunk_id="a", doc_id="1", title="A", text="retrieval evidence"),
+        Chunk(chunk_id="b", doc_id="2", title="B", text="citation source"),
+    ]
+    assert bm25_scores("basketball playoffs", chunks) == [0.0, 0.0]

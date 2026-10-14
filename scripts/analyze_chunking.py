@@ -1,6 +1,7 @@
-"""Compare chunking configurations on representative retrieval queries."""
+"""Evaluate a size-by-overlap grid on known relevant-source queries."""
 
 from dataclasses import dataclass
+from itertools import product
 
 from src.chunking import build_chunks
 from src.corpus import load_default_corpus
@@ -13,28 +14,39 @@ class EvaluationQuery:
     expected_doc_id: str
 
 
+# Three questions per source document reduce the risk of choosing settings for
+# one convenient wording. Expected sources are fixed before evaluating settings.
 QUERIES = [
-    EvaluationQuery(
-        question="What does retrieval augmented generation combine?",
-        expected_doc_id="doc-1",
-    ),
-    EvaluationQuery(
-        question="How do chunk size and overlap affect retrieval quality?",
-        expected_doc_id="doc-2",
-    ),
-    EvaluationQuery(
-        question="What should happen when context does not support a claim?",
-        expected_doc_id="doc-3",
-    ),
+    EvaluationQuery("What does retrieval augmented generation combine?", "doc-1"),
+    EvaluationQuery("How does retrieval provide context to the generator?", "doc-1"),
+    EvaluationQuery("Why can RAG use domain-specific information without retraining?", "doc-1"),
+    EvaluationQuery("How can chunks that are too small or large affect retrieval?", "doc-2"),
+    EvaluationQuery("Why is overlap added between adjacent text chunks?", "doc-2"),
+    EvaluationQuery("What metadata helps trace a retrieved source?", "doc-2"),
+    EvaluationQuery("When should a grounded assistant refuse to answer?", "doc-3"),
+    EvaluationQuery("Why should a system avoid inventing unsupported answers?", "doc-3"),
+    EvaluationQuery("How does refusal behavior affect user trust?", "doc-3"),
+    EvaluationQuery("What do hit rate and mean reciprocal rank measure?", "doc-4"),
+    EvaluationQuery("How should top-k retrieval results be ordered?", "doc-4"),
+    EvaluationQuery("Why compare several representative retrieval queries?", "doc-4"),
+    EvaluationQuery("What should citation identifiers match?", "doc-5"),
+    EvaluationQuery("How do references help readers inspect evidence?", "doc-5"),
+    EvaluationQuery("Why is a citation alone insufficient?", "doc-5"),
 ]
 
-CONFIGURATIONS = [
-    (80, 0),
-    (100, 20),
-    (140, 30),
-    (180, 40),
-    (220, 50),
-]
+CHUNK_SIZES = (60, 80, 100, 120, 140, 180, 220)
+OVERLAPS = (0, 10, 20, 30, 40, 50)
+TOP_K = 3
+
+
+@dataclass(frozen=True)
+class Summary:
+    chunk_size: int
+    overlap: int
+    chunk_count: int
+    hit_at_1: float
+    hit_at_3: float
+    mrr: float
 
 
 def reciprocal_rank(expected_doc_id: str, doc_ids: list[str]) -> float:
@@ -44,65 +56,69 @@ def reciprocal_rank(expected_doc_id: str, doc_ids: list[str]) -> float:
     return 0.0
 
 
+def evaluate(chunk_size: int, overlap: int, documents: list) -> Summary:
+    chunks = build_chunks(documents, chunk_size=chunk_size, overlap=overlap)
+    ranks: list[float] = []
+    hit_at_1: list[bool] = []
+    hit_at_3: list[bool] = []
+
+    for query in QUERIES:
+        results = retrieve_top_k(query.question, chunks, k=TOP_K)
+        doc_ids = [result.chunk.doc_id for result in results]
+        rank = reciprocal_rank(query.expected_doc_id, doc_ids)
+        ranks.append(rank)
+        hit_at_1.append(bool(doc_ids and doc_ids[0] == query.expected_doc_id))
+        hit_at_3.append(query.expected_doc_id in doc_ids)
+
+    query_count = len(QUERIES)
+    return Summary(
+        chunk_size=chunk_size,
+        overlap=overlap,
+        chunk_count=len(chunks),
+        hit_at_1=sum(hit_at_1) / query_count,
+        hit_at_3=sum(hit_at_3) / query_count,
+        mrr=sum(ranks) / query_count,
+    )
+
+
 def main() -> None:
     documents = load_default_corpus()
-    summaries: list[tuple[int, int, int, float, float, float]] = []
+    configurations = [
+        (size, overlap)
+        for size, overlap in product(CHUNK_SIZES, OVERLAPS)
+        if overlap < size
+    ]
+    summaries = [evaluate(size, overlap, documents) for size, overlap in configurations]
 
-    print("CHUNKING ANALYSIS")
-    print("Each query has one expected source document; retrieval uses top_k=3.\n")
-
-    for chunk_size, overlap in CONFIGURATIONS:
-        chunks = build_chunks(documents, chunk_size=chunk_size, overlap=overlap)
-        reciprocal_ranks: list[float] = []
-        top_scores: list[float] = []
-
-        print(f"Configuration: chunk_size={chunk_size}, overlap={overlap}")
-        print(f"Chunks produced: {len(chunks)}")
-        for query in QUERIES:
-            results = retrieve_top_k(query.question, chunks, k=3)
-            doc_ids = [result.chunk.doc_id for result in results]
-            rank_score = reciprocal_rank(query.expected_doc_id, doc_ids)
-            reciprocal_ranks.append(rank_score)
-            top_scores.append(results[0].score if results else 0.0)
-            ranking = ", ".join(
-                f"{result.chunk.chunk_id} ({result.score:.3f})" for result in results
-            ) or "no results"
-            expected_rank = int(1 / rank_score) if rank_score else "missing"
-            print(f"  Query: {query.question}")
-            print(f"  Expected: {query.expected_doc_id}; rank: {expected_rank}")
-            print(f"  Results: {ranking}")
-
-        hit_rate = sum(score > 0 for score in reciprocal_ranks) / len(QUERIES)
-        mean_reciprocal_rank = sum(reciprocal_ranks) / len(QUERIES)
-        mean_top_score = sum(top_scores) / len(QUERIES)
-        summaries.append(
-            (
-                chunk_size,
-                overlap,
-                len(chunks),
-                hit_rate,
-                mean_reciprocal_rank,
-                mean_top_score,
-            )
-        )
-        print()
-
-    print("ANALYSIS SUMMARY")
-    print("size overlap chunks hit_rate MRR mean_top_score")
-    for size, overlap, count, hit_rate, mrr, mean_score in summaries:
+    print("CHUNK SIZE × OVERLAP GRID")
+    print(
+        f"{len(summaries)} configurations; {len(QUERIES)} fixed queries; "
+        f"top_k={TOP_K}; relevance judged by expected source document."
+    )
+    print("size overlap chunks hit@1 hit@3 MRR")
+    for item in summaries:
         print(
-            f"{size:>4} {overlap:>7} {count:>6} "
-            f"{hit_rate:>8.0%} {mrr:>4.3f} {mean_score:>14.3f}"
+            f"{item.chunk_size:>4} {item.overlap:>7} {item.chunk_count:>6} "
+            f"{item.hit_at_1:>5.0%} {item.hit_at_3:>5.0%} {item.mrr:>5.3f}"
         )
 
+    # Rank retrieval quality first. When quality ties, prefer less overlap and
+    # then fewer chunks, since these reduce duplicated text and index size.
     best = max(
         summaries,
-        key=lambda item: (item[4], item[1] > 0, item[5], -item[2]),
+        key=lambda item: (
+            item.hit_at_1,
+            item.mrr,
+            item.hit_at_3,
+            -item.overlap,
+            -item.chunk_count,
+        ),
     )
     print(
         "\nRecommended measured configuration: "
-        f"chunk_size={best[0]}, overlap={best[1]} "
-        "(highest MRR, then boundary-preserving overlap, mean top score, and fewer chunks)."
+        f"chunk_size={best.chunk_size}, overlap={best.overlap} "
+        f"(hit@1={best.hit_at_1:.1%}, hit@3={best.hit_at_3:.1%}, "
+        f"MRR={best.mrr:.3f}, chunks={best.chunk_count})."
     )
 
 

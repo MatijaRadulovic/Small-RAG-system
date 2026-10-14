@@ -43,3 +43,12 @@ def test_build_grounded_answer_refuses_weak_one_term_overlap() -> None:
     assert result.refused is True
     assert result.citations == []
     assert "not have enough grounded evidence" in result.answer
+
+
+def test_grounding_uses_query_term_coverage_not_raw_bm25_scale() -> None:
+    chunks = build_chunks(load_default_corpus())
+    result = build_grounded_answer(
+        "What color is retrieval on Mars?", chunks, top_k=2
+    )
+    assert result.refused is True
+    assert result.citations == []

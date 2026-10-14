@@ -55,7 +55,7 @@ The attached homework brief defines five outcomes. Outcomes 1 and 2 are complete
 
 ### Submission details
 
-- [ ] Record pair contributions and the demo lead (requires student names and assignment).
+- [x] Record pair contributions and the demo lead (requires student names and assignment).
 
 ## Step 1: Baseline and Chunking Experiment
 
@@ -252,3 +252,33 @@ python3 -m scripts.generate_evidence
 ```
 
 All individual evidence commands were also rerun. Outcomes 1–5 passed. Pair contribution names and the designated demo lead remain open because that information was not provided.
+
+## Phase 0: BM25 and Boundary-Aware Baseline
+
+### What changed
+
+Added focused tests for sentence and word boundary chunking, empty and long-word inputs, overlap edge cases, BM25 rare-term weighting, repeated-term saturation, length normalization, and empty or unrelated searches. Re-ran the full experiment and all evidence scripts with the newer BM25 scorer.
+
+### Why
+
+The earlier evidence used character slicing and cosine scores, so its scores and chunk IDs no longer described the current implementation. BM25 scores are not on the same scale as cosine similarity, so retaining the prior raw-score refusal threshold would have made grounding decisions arbitrary.
+
+### Decision and verification
+
+The 42-configuration, 15-query experiment selected `chunk_size=180`, `overlap=0`: hit@1 `100%`, hit@3 `100%`, MRR `1.000`, 16 chunks. The former `100/20` configuration scored hit@1 `93%`, hit@3 `100%`, MRR `0.967`, with 36 chunks. Grounding now requires at least two matched meaningful terms and coverage of at least half the query terms (one-term queries need their sole term). This avoids dependence on BM25's corpus-specific numerical scale.
+
+Commands:
+
+```bash
+./scripts/run_tests.sh
+# 27 passed in 0.19s
+python3 -m scripts.analyze_chunking
+# recommended 180/0; hit@1=100%, hit@3=100%, MRR=1.000, chunks=16
+python3 -m scripts.check_retrieval
+python3 -m scripts.check_citations
+python3 -m scripts.check_refusal
+python3 -m scripts.generate_evidence
+python3 -m src.cli --question "What is retrieval augmented generation?"
+```
+
+All five evidence scripts passed. The evidence file was refreshed with the current scores and chunk IDs. The independent phases that follow will address per-result qualification and diversity of answer context.

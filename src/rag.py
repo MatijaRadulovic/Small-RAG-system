@@ -5,8 +5,8 @@ from .retrieval import RetrievalResult, retrieve_top_k, tokenize
 
 
 REFUSAL_MESSAGE = "I do not have enough grounded evidence in the provided corpus to answer that question."
-MIN_GROUNDED_SCORE = 0.15
 MIN_MATCHED_TERMS = 2
+MIN_QUERY_TERM_COVERAGE = 0.5
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,11 @@ def has_sufficient_evidence(question: str, result: RetrievalResult) -> bool:
     evidence_terms = set(tokenize(f"{result.chunk.title} {result.chunk.text}"))
     matched_terms = len(query_terms & evidence_terms)
     required_matches = 1 if len(query_terms) == 1 else MIN_MATCHED_TERMS
-    return result.score >= MIN_GROUNDED_SCORE and matched_terms >= required_matches
+    term_coverage = matched_terms / len(query_terms) if query_terms else 0.0
+    return (
+        matched_terms >= required_matches
+        and term_coverage >= MIN_QUERY_TERM_COVERAGE
+    )
 
 
 def build_grounded_answer(question: str, chunks: list[Chunk], top_k: int = 2) -> RagAnswer:

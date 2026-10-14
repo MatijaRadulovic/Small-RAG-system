@@ -1,19 +1,17 @@
 # Week 6 RAG Homework Evidence
 
+This evidence reflects the current sentence-aware chunker and BM25 scorer. Re-run the commands below after changing the corpus, chunking settings, or retrieval code because scores and chunk IDs can change.
+
 ## 1. Outcome 1: Chunking impact
 
-- **Query:** `How do chunk size and overlap affect retrieval quality?`
-- **Config A:** `chunk_size=100`, `overlap=20`
-  - Corpus chunks: 31
-  - Expected source: `doc-2`
-  - Top result: `doc-2-chunk-4` (`0.464`)
-  - Aggregate result over three queries: 100% hit rate, `1.000` MRR, `0.465` mean top score.
-- **Config B:** `chunk_size=220`, `overlap=50`
-  - Corpus chunks: 14
-  - Expected source: `doc-2`
-  - Top result: `doc-2-chunk-2` (`0.388`)
-  - Aggregate result over three queries: 100% hit rate, `1.000` MRR, `0.335` mean top score.
-- **Retrieval difference summary:** Both configurations ranked every expected document first. Config A produced more focused passages and the strongest average top score. Config B created fewer, broader passages, but unrelated terms diluted similarity. `100/20` was selected because its overlap protects boundary context and it performed best after the scorer and corpus improvements.
+- **Evaluation:** 42 `(chunk_size, overlap)` configurations, 15 fixed questions, `top_k=3`; relevance is judged by whether the expected source document appears at the specified rank.
+- **Config A:** `chunk_size=180`, `overlap=0`
+  - Chunks: 16
+  - Hit@1: 100%; Hit@3: 100%; MRR: `1.000`
+- **Config B:** `chunk_size=100`, `overlap=20`
+  - Chunks: 36
+  - Hit@1: 93%; Hit@3: 100%; MRR: `0.967`
+- **Retrieval difference summary:** Both settings retrieve the expected source within the first three results for every query. `180/0` ranks the expected source first in all 15 cases and creates fewer chunks, so it is the measured default for this corpus and query set. This is not a universal setting; a different corpus or evaluation set may favor other boundaries.
 - **Reproduce:** `python3 -m scripts.analyze_chunking`
 
 ## 2. Outcome 2: Top-k retrieval
@@ -23,41 +21,41 @@
 
 | k | Rank | Chunk ID | Score |
 | ---: | ---: | --- | ---: |
-| 2 | 1 | `doc-2-chunk-4` | 0.556 |
-| 2 | 2 | `doc-2-chunk-2` | 0.192 |
-| 3 | 1 | `doc-2-chunk-4` | 0.556 |
-| 3 | 2 | `doc-2-chunk-2` | 0.192 |
-| 3 | 3 | `doc-5-chunk-1` | 0.153 |
+| 2 | 1 | `doc-2-chunk-2` | 11.124 |
+| 2 | 2 | `doc-2-chunk-0` | 2.084 |
+| 3 | 1 | `doc-2-chunk-2` | 11.124 |
+| 3 | 2 | `doc-2-chunk-0` | 2.084 |
+| 3 | 3 | `doc-1-chunk-0` | 1.856 |
 
-- **Why ranking is correct:** The two highest chunks come from the chunking document and contain the query concepts `chunk`, `size`, `overlap`, and `retrieval quality`. The third chunk shares only the weaker term `chunk`, so it receives a lower score. The checker confirmed exact result limits, descending scores, and the expected source at rank 1.
+- **Why ranking is correct:** The first two passages are from `Chunking and Metadata` and contain the requested chunk size, overlap, and retrieval concepts. The third passage shares fewer relevant terms and scores lower. The checker confirms the requested result count and descending scores.
 - **Reproduce:** `python3 -m scripts.check_retrieval`
 
 ## 3. Outcome 3: Citation quality
 
 - **Supported query:** `How do citations connect claims to retrieved chunks?`
-- **Retrieved chunk IDs:** `doc-5-chunk-0`, `doc-2-chunk-6`
+- **Retrieved chunk IDs:** `doc-5-chunk-0`, `doc-4-chunk-2`
 - **Answer with citations:**
 
 ```text
 Answer:
-- Citations connect generated statements to retrieved chunks. Citation identifiers should match the ch [doc-5-chunk-0]
-- ng, citations, and source traceability. [doc-2-chunk-6]
+- Citations connect generated statements to retrieved chunks. Citation identifiers should match the chunk IDs supplied to the answer generator, and the cited text should actually [doc-5-chunk-0]
+- A top-k pipeline must return no more than k chunks and order them from highest to lowest similarity. [doc-4-chunk-2]
 
 References:
 - [doc-5-chunk-0] Citation Quality
-- [doc-2-chunk-6] Chunking and Metadata
+- [doc-4-chunk-2] Retrieval Evaluation
 ```
 
-- **Verification:** The checker compared `RagAnswer.citations` with the ordered retrieved IDs and confirmed exact equality. Each ID appears once beside supporting text and once in References.
+- **Verification:** The checker confirms the ordered citation list equals the retrieved chunk IDs. Phase 4 of `improvments_plan.md` will qualify each result independently before answer inclusion; this current output shows why that improvement is needed, since the second passage is related only loosely to the query.
 - **Reproduce:** `python3 -m scripts.check_citations`
 
 ## 4. Outcome 4: Refusal behavior
 
 - **Unsupported query:** `What color is retrieval on Mars?`
 - **Retrieved context:**
-  - `doc-4-chunk-0`, score `0.203`: “Retrieval evaluation starts with questions whose relevant source documents are known. Hit rate check”
-  - `doc-1-chunk-0`, score `0.174`: “Retrieval augmented generation combines retrieval with text generation. Before answering, the retrie”
-- **Why evidence is insufficient:** Both chunks match the word `retrieval`, but neither contains evidence about a color or Mars. The grounding rule requires two meaningful matched query terms for a multi-term question.
+  - `doc-1-chunk-0`, score `1.856`: RAG combines retrieval with generation and selects question-relevant passages.
+  - `doc-4-chunk-0`, score `1.356`: retrieval evaluation checks whether a relevant source appears among results.
+- **Why evidence is insufficient:** The chunks discuss retrieval but contain no information about Mars or a color. The grounding rule requires two matched meaningful terms and at least 50% query-term coverage.
 - **Refusal output:** `I do not have enough grounded evidence in the provided corpus to answer that question.`
 - **Citations:** None
 - **Reproduce:** `python3 -m scripts.check_refusal`
@@ -66,48 +64,36 @@ References:
 
 - **Reproduce both cases:** `python3 -m scripts.generate_evidence`
 
-### Supported case command and output
+### Supported case
 
 ```text
 Question: How do citations connect claims to retrieved chunks?
-Retrieved chunks:
-- doc-5-chunk-0 | Citation Quality | score=0.481
-  Citations connect generated statements to retrieved chunks. Citation identifiers should match the ch
-- doc-2-chunk-6 | Chunking and Metadata | score=0.190
-  ng, citations, and source traceability.
-Answer:
-- Citations connect generated statements to retrieved chunks. Citation identifiers should match the ch [doc-5-chunk-0]
-- ng, citations, and source traceability. [doc-2-chunk-6]
-
-References:
-- [doc-5-chunk-0] Citation Quality
-- [doc-2-chunk-6] Chunking and Metadata
-Citations: doc-5-chunk-0, doc-2-chunk-6
+Retrieved:
+- doc-5-chunk-0 | Citation Quality | score=7.600
+- doc-4-chunk-2 | Retrieval Evaluation | score=1.966
+Citations: doc-5-chunk-0, doc-4-chunk-2
 Refused: False
 ```
 
-The two citations exactly match the two retrieved chunk IDs.
+The printed answer and full retrieved passages are included in the command output. The evidence check confirms that citations correspond to retrieved IDs.
 
-### Unsupported case command and output
+### Unsupported case
 
 ```text
 Question: What color is retrieval on Mars?
-Retrieved chunks:
-- doc-4-chunk-0 | Retrieval Evaluation | score=0.203
-  Retrieval evaluation starts with questions whose relevant source documents are known. Hit rate check
-- doc-1-chunk-0 | RAG Fundamentals | score=0.174
-  Retrieval augmented generation combines retrieval with text generation. Before answering, the retrie
-Answer:
-I do not have enough grounded evidence in the provided corpus to answer that question.
+Retrieved:
+- doc-1-chunk-0 | RAG Fundamentals | score=1.856
+- doc-4-chunk-0 | Retrieval Evaluation | score=1.356
+Answer: I do not have enough grounded evidence in the provided corpus to answer that question.
 Citations: None
 Refused: True
 ```
 
-The retrieved chunks share only `retrieval` with the question and provide no evidence about color or Mars, so refusal is correct.
+The system refuses because the retrieved text does not answer the color or Mars part of the question.
 
-### Final verification
+## Final Verification
 
 ```text
 ./scripts/run_tests.sh
-15 passed in 0.05s
+27 passed in 0.19s
 ```

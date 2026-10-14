@@ -113,3 +113,7 @@ Use this exact structure for easy review:
   - Unsupported case command + output
 
 Use `docs/homework-checklist.md` as submission guidance.
+
+## Learn how retrieval works
+
+See [`docs/rag_retrieval_guide.md`](docs/rag_retrieval_guide.md) for a beginner-friendly explanation of boundary-aware chunking, BM25 scoring, title boosting, top-k retrieval, and grounding checks.
