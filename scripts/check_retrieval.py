@@ -12,10 +12,17 @@ def print_results(k: int, results: list[RetrievalResult]) -> None:
     print(f"top_k={k}")
     for rank, result in enumerate(results, start=1):
         preview = result.chunk.text.replace("\n", " ")[:90]
+        semantic_details = (
+            f" | semantic cosine={result.semantic_score:.3f} "
+            f"| lexical rank={result.lexical_rank} | semantic rank={result.semantic_rank}"
+            if result.semantic_score is not None
+            else ""
+        )
         print(
             f"  {rank}. {result.chunk.chunk_id} | {result.chunk.title} "
             f"| fused={result.score:.5f} | BM25={result.content_score:.3f} "
             f"| title BM25={result.title_score:.3f} "
+            f"{semantic_details} "
             f"| diversity={result.diversity_score:.2f} "
             f"(redundancy={result.redundancy:.2f}) "
             f"| terms={','.join(result.matched_terms)} | {preview}..."

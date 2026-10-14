@@ -70,7 +70,7 @@ Words such as `the`, `does`, and `how` appear in many sentences and usually say 
 
 The current sample corpus is in English, so English remains the default. For Serbian text, pass `--language sr`; use `--language mixed` when questions or documents combine English and Serbian.
 
-Tokenization is still lexical: `retrieve`, `retrieval`, and `retrieved` are different tokens. No stemming or lemmatization is enabled. The sample corpus does not contain enough labeled Serbian examples to measure whether a Serbian stemmer would improve relevance without merging unrelated words. The system does not yet understand synonyms or meaning in the way an embedding model can.
+Tokenization is still lexical in BM25 mode: `retrieve`, `retrieval`, and `retrieved` are different tokens. No stemming or lemmatization is enabled. Hybrid mode adds multilingual vector similarity so semantically related words can match even when their spellings differ.
 
 ## 4. BM25 scoring
 
@@ -161,16 +161,14 @@ The previous binary cosine scorer was better than raw token counting, but every 
 
 Boundary-aware chunking also improves the material being scored. Complete words and sentences give BM25 meaningful tokens instead of fragments such as `retrie` and `val`.
 
-## 9. What this system still cannot do
+## 9. What lexical mode still cannot do
 
-BM25 matches words, not concepts. A question containing `automobile` may not retrieve a passage containing only `car`. It also has no stemming, language-specific morphology, typo correction, or learned semantic representation.
+BM25 matches words, not concepts. A question containing `automobile` may not retrieve a passage containing only `car`. It also has no stemming, language-specific morphology, typo correction, or learned semantic representation. Use hybrid mode for semantic matching; keep in mind the small current dataset is not enough to establish broad multilingual quality.
 
 For a larger system, common next steps are:
 
 - add stemming or lemmatization;
 - add phrase and field weighting;
-- use embedding similarity for semantic matches;
-- combine BM25 and embeddings as hybrid retrieval;
 - rerank the first retrieval results with a stronger model.
 
 BM25 remains valuable even in a hybrid system because it is fast, explainable, and strong for exact names, identifiers, and technical terms.
@@ -211,3 +209,18 @@ python3 -m scripts.evaluate_rag --split heldout --details
 ```
 
 Document Recall@k tells whether a relevant source appears; source-span Recall@k tells whether the exact labeled passage appears. MRR rewards earlier relevant results, while nDCG also uses document relevance grades. Citation precision and recall check whether cited chunks contain expected source spans. Refusal precision and recall compare actual refusal decisions with labeled answerability. Current thresholds and limitations are in `docs/evaluation_policy.md`. The set is small and English-only, so its measurements are useful regression signals rather than broad quality guarantees.
+
+## 12. Hybrid lexical and semantic retrieval
+
+Hybrid retrieval keeps BM25 for exact words and identifiers, then adds cosine similarity from local embeddings. It fuses the two rank lists with reciprocal rank fusion, so unrelated raw BM25 and cosine scales are not added directly. `HybridRetriever` builds the lexical statistics and one vector per chunk once, then reuses those vectors for the process lifetime.
+
+The configured model is `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`. Its model card lists 50 languages and Apache 2.0; FastEmbed's supported model table reports 384-dimensional vectors and an approximately 0.22 GB model package. The listed language set includes Serbian. FastEmbed runs it through ONNX locally. The model has a 128-token sequence limit, so very long chunks may be truncated; the current 220-character chunks stay below that limit in this corpus. [Model card](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2), [FastEmbed supported models](https://qdrant.github.io/fastembed/examples/Supported_Models/), [FastEmbed retrieval guide](https://qdrant.github.io/fastembed/qdrant/Retrieval_with_FastEmbed/).
+
+Install the optional package and select hybrid mode:
+
+```bash
+python3 -m pip install -r requirements-embeddings.txt
+python3 -m src.cli --retrieval-mode hybrid --question "What does the generator do with retrieved passages?"
+```
+
+The first run downloads the model; later runs can require cached files with `--offline-embeddings`. If the optional dependency or cached model is absent, lexical mode remains available. The held-out evaluation currently improves source-span Recall@3 from `0.786` to `0.929` while keeping document Recall@3, citation, and refusal metrics unchanged. Reproduce with `python3 -m scripts.compare_evaluation --split heldout --baseline-mode lexical --candidate-mode hybrid --baseline-size 220 --candidate-size 220 --baseline-overlap 0 --candidate-overlap 0`. Run `python3 -m scripts.check_hybrid` for synonym, paraphrase, exact-ID, Serbian, and mixed-language probes, and `python3 -m scripts.benchmark_hybrid` for local runtime and memory measurements.

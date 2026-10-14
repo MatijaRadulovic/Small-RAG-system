@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from .chunking import Chunk
+from .hybrid_retrieval import HybridRetriever
 from .retrieval import BM25Index, RetrievalResult, retrieve_top_k, tokenize
 
 
@@ -72,19 +73,29 @@ def has_sufficient_evidence(
 
 def build_grounded_answer(
     question: str,
-    chunks: list[Chunk] | BM25Index,
+    chunks: list[Chunk] | BM25Index | HybridRetriever,
     top_k: int = 2,
     language: str | None = None,
     max_per_source: int | None = 2,
 ) -> RagAnswer:
-    effective_language = language or (chunks.language if isinstance(chunks, BM25Index) else "en")
-    results = retrieve_top_k(
-        question,
-        chunks,
-        k=top_k,
-        language=language,
-        max_per_source=max_per_source,
+    effective_language = (
+        language
+        or (chunks.language if isinstance(chunks, (BM25Index, HybridRetriever)) else "en")
     )
+    if isinstance(chunks, HybridRetriever):
+        results = chunks.retrieve_top_k(
+            question,
+            k=top_k,
+            max_per_source=max_per_source,
+        )
+    else:
+        results = retrieve_top_k(
+            question,
+            chunks,
+            k=top_k,
+            language=language,
+            max_per_source=max_per_source,
+        )
     if not results:
         return RagAnswer(answer=REFUSAL_MESSAGE, citations=[], refused=True)
 

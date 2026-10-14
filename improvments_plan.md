@@ -116,15 +116,15 @@ The current answer decision checks the best result and may include weaker lower-
 
 ## Phase 7: Hybrid Lexical and Semantic Retrieval
 
-- [ ] Select a local embedding model based on supported languages, license, model size, speed, and offline requirements.
-- [ ] Define an embedding interface so the model can be replaced without changing retrieval callers.
-- [ ] Generate and cache one embedding per chunk.
-- [ ] Add semantic top-k retrieval using cosine similarity.
-- [ ] Combine BM25 and semantic rankings with reciprocal rank fusion or another calibrated method.
-- [ ] Keep lexical-only retrieval available as a fallback.
-- [ ] Test synonyms, paraphrases, exact identifiers, and queries mixing Serbian and English.
-- [ ] Measure retrieval quality, latency, memory, and index size against the Phase 6 baseline.
-- [ ] Commit as `Add hybrid semantic retrieval`.
+- [x] Select a local embedding model based on supported languages, license, model size, speed, and offline requirements.
+- [x] Define an embedding interface so the model can be replaced without changing retrieval callers.
+- [x] Generate and cache one embedding per chunk.
+- [x] Add semantic top-k retrieval using cosine similarity.
+- [x] Combine BM25 and semantic rankings with reciprocal rank fusion or another calibrated method.
+- [x] Keep lexical-only retrieval available as a fallback.
+- [x] Test synonyms, paraphrases, exact identifiers, and queries mixing Serbian and English.
+- [x] Measure retrieval quality, latency, memory, and index size against the Phase 6 baseline.
+- [x] Commit as `Add hybrid semantic retrieval`.
 
 **Done when:** hybrid retrieval improves held-out paraphrase recall without harming exact-term retrieval beyond the agreed regression limit.
 

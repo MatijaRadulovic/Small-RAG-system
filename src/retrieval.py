@@ -206,6 +206,9 @@ class RetrievalResult:
     matched_terms: tuple[str, ...] = ()
     redundancy: float = 0.0
     diversity_score: float = 1.0
+    semantic_score: float | None = None
+    lexical_rank: int | None = None
+    semantic_rank: int | None = None
 
 
 class _BM25Field:
@@ -349,6 +352,70 @@ def _token_overlap(left: set[str], right: set[str]) -> float:
     return len(left & right) / len(union) if union else 0.0
 
 
+def _validate_diversity_options(
+    max_per_source: int | None,
+    duplicate_threshold: float,
+) -> None:
+    if max_per_source is not None and max_per_source <= 0:
+        raise ValueError("max_per_source must be > 0 or None")
+    if not 0 <= duplicate_threshold <= 1:
+        raise ValueError("duplicate_threshold must be between 0 and 1")
+
+
+def _select_diverse_results(
+    candidates: Sequence[RetrievalResult],
+    *,
+    k: int,
+    language: str,
+    max_per_source: int | None,
+    duplicate_threshold: float,
+) -> list[RetrievalResult]:
+    _validate_diversity_options(max_per_source, duplicate_threshold)
+    selected: list[RetrievalResult] = []
+    source_counts: Counter[str] = Counter()
+    selected_tokens: list[tuple[RetrievalResult, set[str]]] = []
+    for item in candidates:
+        source = item.chunk.source_id or item.chunk.doc_id
+        if max_per_source is not None and source_counts[source] >= max_per_source:
+            continue
+
+        terms = set(tokenize(item.chunk.text, language=language))
+        redundancy = 0.0
+        duplicate = False
+        normalized_text = " ".join(item.chunk.text.casefold().split())
+        for existing, existing_terms in selected_tokens:
+            existing_text = " ".join(existing.chunk.text.casefold().split())
+            overlap = _token_overlap(terms, existing_terms)
+            redundancy = max(redundancy, overlap)
+            same_source = (existing.chunk.source_id or existing.chunk.doc_id) == source
+            if normalized_text == existing_text or (
+                same_source and overlap >= duplicate_threshold
+            ):
+                duplicate = True
+                break
+        if duplicate:
+            continue
+
+        selected_item = RetrievalResult(
+            chunk=item.chunk,
+            score=item.score,
+            content_score=item.content_score,
+            title_score=item.title_score,
+            matched_terms=item.matched_terms,
+            semantic_score=item.semantic_score,
+            lexical_rank=item.lexical_rank,
+            semantic_rank=item.semantic_rank,
+            redundancy=redundancy,
+            diversity_score=1.0 - redundancy,
+        )
+        selected.append(selected_item)
+        selected_tokens.append((selected_item, terms))
+        source_counts[source] += 1
+        if len(selected) == k:
+            break
+    return selected
+
+
 def retrieve_top_k(
     query: str,
     chunks: Sequence[Chunk] | BM25Index,
@@ -365,10 +432,7 @@ def retrieve_top_k(
         raise ValueError("min_score must be >= 0")
     if not 0 <= title_weight <= 1:
         raise ValueError("title_weight must be between 0 and 1")
-    if max_per_source is not None and max_per_source <= 0:
-        raise ValueError("max_per_source must be > 0 or None")
-    if not 0 <= duplicate_threshold <= 1:
-        raise ValueError("duplicate_threshold must be between 0 and 1")
+    _validate_diversity_options(max_per_source, duplicate_threshold)
 
     if isinstance(chunks, BM25Index):
         index = chunks
@@ -404,45 +468,10 @@ def retrieve_top_k(
     candidates = [item for item in scored if item.score >= min_score]
     candidates.sort(key=lambda item: (-item.score, item.chunk.chunk_id))
 
-    # Greedily keep ranked passages while suppressing exact duplicates, very
-    # similar passages from the same source, and excessive source repetition.
-    selected: list[RetrievalResult] = []
-    source_counts: Counter[str] = Counter()
-    selected_tokens: list[tuple[RetrievalResult, set[str]]] = []
-    for item in candidates:
-        source = item.chunk.source_id or item.chunk.doc_id
-        if max_per_source is not None and source_counts[source] >= max_per_source:
-            continue
-
-        terms = set(tokenize(item.chunk.text, language=index.language))
-        redundancy = 0.0
-        duplicate = False
-        normalized_text = " ".join(item.chunk.text.casefold().split())
-        for existing, existing_terms in selected_tokens:
-            existing_text = " ".join(existing.chunk.text.casefold().split())
-            overlap = _token_overlap(terms, existing_terms)
-            redundancy = max(redundancy, overlap)
-            same_source = (existing.chunk.source_id or existing.chunk.doc_id) == source
-            if normalized_text == existing_text or (
-                same_source and overlap >= duplicate_threshold
-            ):
-                duplicate = True
-                break
-        if duplicate:
-            continue
-
-        selected_item = RetrievalResult(
-            chunk=item.chunk,
-            score=item.score,
-            content_score=item.content_score,
-            title_score=item.title_score,
-            matched_terms=item.matched_terms,
-            redundancy=redundancy,
-            diversity_score=1.0 - redundancy,
-        )
-        selected.append(selected_item)
-        selected_tokens.append((selected_item, terms))
-        source_counts[source] += 1
-        if len(selected) == k:
-            break
-    return selected
+    return _select_diverse_results(
+        candidates,
+        k=k,
+        language=index.language,
+        max_per_source=max_per_source,
+        duplicate_threshold=duplicate_threshold,
+    )

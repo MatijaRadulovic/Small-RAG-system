@@ -95,7 +95,7 @@ The system refuses because the retrieved text does not answer the color or Mars 
 
 ```text
 ./scripts/run_tests.sh
-51 passed in 0.07s
+57 passed in 0.12s
 ```
 
 ## RAG Improvement Phase 6: Held-Out Evaluation Baseline
@@ -123,3 +123,26 @@ citation precision        1.000      0.500  -0.500
 ```
 
 The default comparison is `220/0` against `100/20`. Although document Recall@3 remains high, `100/20` fails the source-span and citation regression floors. `python3 -m scripts.analyze_chunking` now uses only the tuning split and selects `220/0` at 100% hit@1, 100% hit@3, and MRR `1.000`; these tuning results are not substituted for the held-out report.
+
+## RAG Improvement Phase 7: Hybrid Retrieval
+
+The optional model is `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`, loaded locally through FastEmbed. Install `requirements-embeddings.txt`; the first run downloads the model, and later runs support `--offline-embeddings`.
+
+Command: `python3 -m scripts.compare_evaluation --split heldout --baseline-mode lexical --candidate-mode hybrid --baseline-size 220 --candidate-size 220 --baseline-overlap 0 --candidate-overlap 0`
+
+```text
+metric                 lexical    hybrid  delta
+Recall@3                 1.000     1.000  +0.000
+MRR                      0.929     0.929  +0.000
+nDCG@3                   0.947     0.947  +0.000
+source-span Recall@3     0.786     0.929  +0.143
+span MRR                 0.714     0.762  +0.048
+citation precision       1.000     1.000  +0.000
+citation recall          0.250     0.250  +0.000
+refusal precision        0.375     0.375  +0.000
+refusal recall           1.000     1.000  +0.000
+```
+
+`python3 -m scripts.check_hybrid --offline-embeddings` passes five local probes: synonym paraphrase, English paraphrase, exact version identifier, Serbian query to English text, and mixed Serbian/English query. In one cached CPU run, `python3 -m scripts.benchmark_hybrid --offline-embeddings --repeats 3` measured `291 ms` index build, `66.68 ms` average warm query and `76.33 ms` p95 over 21 queries. The 14-chunk vector matrix has a 21 KiB float32 lower bound; the cached model uses `240.5 MiB`, process peak RSS was `696.8 MiB`, and Python traced peak was `27.7 MiB`. The model initialization reading was `8.41 s`; runtime measures vary by machine.
+
+Current unit suite: `./scripts/run_tests.sh` reports 57 passed in `0.12s`.

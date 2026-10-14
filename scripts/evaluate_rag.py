@@ -5,6 +5,7 @@ from collections import Counter
 
 from src.chunking import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, build_chunks
 from src.corpus import load_default_corpus
+from src.embeddings import DEFAULT_EMBEDDING_MODEL, EmbeddingProvider, FastEmbedProvider
 from src.evaluation import (
     DEFAULT_DATASET,
     EvaluationCase,
@@ -14,6 +15,7 @@ from src.evaluation import (
     recall_at_k,
     reciprocal_rank,
 )
+from src.hybrid_retrieval import HybridRetriever
 from src.rag import build_grounded_answer
 from src.retrieval import BM25Index, RetrievalResult, retrieve_top_k
 
@@ -25,6 +27,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE)
     parser.add_argument("--overlap", type=int, default=DEFAULT_OVERLAP)
+    parser.add_argument("--retrieval-mode", choices=("lexical", "hybrid"), default="lexical")
+    parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
+    parser.add_argument("--embedding-cache")
+    parser.add_argument("--offline-embeddings", action="store_true")
     parser.add_argument("--details", action="store_true", help="Print per-question outcomes")
     return parser.parse_args()
 
@@ -49,6 +55,8 @@ def evaluate_cases(
     chunk_size: int,
     overlap: int,
     details: bool = False,
+    retrieval_mode: str = "lexical",
+    embedding_provider: EmbeddingProvider | None = None,
 ) -> dict[str, float | int]:
     if top_k <= 0:
         raise ValueError("top_k must be > 0")
@@ -56,7 +64,14 @@ def evaluate_cases(
     source_texts = {document.doc_id: document.text for document in documents}
     chunks = build_chunks(documents, chunk_size=chunk_size, overlap=overlap)
     chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
-    index = BM25Index(chunks)
+    if retrieval_mode == "hybrid":
+        if embedding_provider is None:
+            raise ValueError("hybrid evaluation requires an embedding provider")
+        index: BM25Index | HybridRetriever = HybridRetriever(chunks, embedding_provider)
+    elif retrieval_mode == "lexical":
+        index = BM25Index(chunks)
+    else:
+        raise ValueError("retrieval_mode must be 'lexical' or 'hybrid'")
 
     recalls: list[float] = []
     reciprocal_ranks: list[float] = []
@@ -69,7 +84,11 @@ def evaluate_cases(
     cited_span_count = 0
 
     for case in cases:
-        results = retrieve_top_k(case.question, index, k=top_k)
+        results = (
+            index.retrieve_top_k(case.question, k=top_k)
+            if isinstance(index, HybridRetriever)
+            else retrieve_top_k(case.question, index, k=top_k)
+        )
         retrieved_doc_ids = [item.chunk.doc_id for item in results]
         answer = build_grounded_answer(case.question, index, top_k=top_k)
         relevant = set(case.expected_documents)
@@ -186,10 +205,21 @@ def main() -> None:
         chunk_size=args.chunk_size,
         overlap=args.overlap,
         details=args.details,
+        retrieval_mode=args.retrieval_mode,
+        embedding_provider=(
+            FastEmbedProvider(
+                args.embedding_model,
+                cache_dir=args.embedding_cache,
+                local_files_only=args.offline_embeddings,
+            )
+            if args.retrieval_mode == "hybrid"
+            else None
+        ),
     )
     print(
         f"RAG evaluation: {args.split}; {metrics['case_count']} cases; "
-        f"chunk={args.chunk_size}/{args.overlap}; k={args.top_k}"
+        f"chunk={args.chunk_size}/{args.overlap}; k={args.top_k}; "
+        f"mode={args.retrieval_mode}"
     )
     if metrics["answerable_count"]:
         print(
