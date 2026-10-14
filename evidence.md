@@ -145,7 +145,7 @@ refusal recall           1.000     1.000  +0.000
 
 `python3 -m scripts.check_hybrid --offline-embeddings` passes five local probes: synonym paraphrase, English paraphrase, exact version identifier, Serbian query to English text, and mixed Serbian/English query. In one cached CPU run, `python3 -m scripts.benchmark_hybrid --offline-embeddings --repeats 3` measured `291 ms` index build, `66.68 ms` average warm query and `76.33 ms` p95 over 21 queries. The 14-chunk vector matrix has a 21 KiB float32 lower bound; the cached model uses `240.5 MiB`, process peak RSS was `696.8 MiB`, and Python traced peak was `27.7 MiB`. The model initialization reading was `8.41 s`; runtime measures vary by machine.
 
-Current unit suite: `./scripts/run_tests.sh` reports 57 passed in `0.12s`.
+Current unit suite after Phase 7: `./scripts/run_tests.sh` reports 57 passed in `0.12s`.
 
 ## RAG Improvement Phase 8: Candidate Reranking
 
@@ -177,3 +177,9 @@ cross_encoder_reranking_ms mean=167.45 p95=188.17
 ```
 
 The held-out ranking gain supports keeping reranking as an opt-in mode; the added ~167 ms average cross-encoder scoring cost is visible and can be avoided by leaving `--rerank` off. Timings depend on hardware, and ten held-out questions are only a small regression set. `./scripts/run_tests.sh` reports 61 passed in `0.08s`.
+
+## RAG Improvement Phase 9: Grounded Answer Synthesis Boundary
+
+No live LLM provider was invoked. `AnswerGenerator` is an adapter protocol; `build_grounded_answer` retains extractive output when no adapter is supplied and falls back to it when model output fails validation. Prompt instructions and source passages are kept in separate messages; passages are JSON-escaped and marked untrusted. A generated factual sentence is accepted only when it includes known chunk IDs and has at least two or half of its meaningful terms in the cited evidence. References are rendered from the actual chunks.
+
+Verification: `./scripts/run_tests.sh` reports 69 passed in `0.12s`; `python3 -m scripts.evaluate_rag --split heldout` preserves the lexical baseline (`Recall@3=1.000`, `MRR=0.929`, `nDCG@3=0.947`, source-span Recall@3 `0.786`, span MRR `0.714`, citation precision `1.000`, citation recall `0.250`, refusal precision `0.375`, refusal recall `1.000`). Unit cases exercise an injected instruction, contradictory source passages, missing/unknown/malformed citations, unsupported claims, absent evidence, and adapter failure. The overlap check is lexical and cannot establish semantic entailment; it can reject a valid paraphrase or accept an unsupported sentence with shared words.

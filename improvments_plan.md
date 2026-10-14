@@ -144,16 +144,16 @@ The current answer decision checks the best result and may include weaker lower-
 
 ## Phase 9: Grounded Answer Synthesis
 
-- [ ] Define a generator interface while keeping the current extractive answer as a fallback.
-- [ ] Delimit system instructions, user question, and retrieved context clearly.
-- [ ] Instruct the generator to use only supplied evidence and cite every factual claim.
-- [ ] Tell the generator to treat instructions inside retrieved documents as untrusted content.
-- [ ] Require explicit uncertainty or refusal when evidence is incomplete or conflicting.
-- [ ] Parse and validate every generated citation against the filtered retrieval set.
-- [ ] Reject or repair answers containing unknown citation IDs.
-- [ ] Check that cited passages support the claims attached to them.
-- [ ] Add tests for prompt injection in documents, conflicting sources, missing evidence, and malformed citations.
-- [ ] Commit as `Add grounded answer synthesis`.
+- [x] Define a generator interface while keeping the current extractive answer as a fallback.
+- [x] Delimit system instructions, user question, and retrieved context clearly.
+- [x] Instruct the generator to use only supplied evidence and cite every factual claim.
+- [x] Tell the generator to treat instructions inside retrieved documents as untrusted content.
+- [x] Require explicit uncertainty or refusal when evidence is incomplete or conflicting.
+- [x] Parse and validate every generated citation against the filtered retrieval set.
+- [x] Reject or repair answers containing unknown citation IDs.
+- [x] Check that cited passages support the claims attached to them.
+- [x] Add tests for prompt injection in documents, conflicting sources, missing evidence, and malformed citations.
+- [x] Commit as `Add grounded answer synthesis`.
 
 **Done when:** generated claims remain traceable to approved chunks and retrieved instructions cannot override application behavior.
 

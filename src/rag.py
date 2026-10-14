@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
+from collections.abc import Iterable
 
 from .chunking import Chunk
+from .generation import AnswerGenerator, build_generation_prompts, validate_generated_answer
 from .hybrid_retrieval import HybridRetriever
 from .retrieval import BM25Index, RetrievalResult, retrieve_top_k, tokenize
 from .reranking import RerankingRetriever
@@ -17,6 +19,8 @@ class RagAnswer:
     citations: list[str]
     refused: bool
     evidence_assessments: list["EvidenceAssessment"] = field(default_factory=list)
+    generation_status: str = "extractive"
+    generation_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +82,7 @@ def build_grounded_answer(
     top_k: int = 2,
     language: str | None = None,
     max_per_source: int | None = 2,
+    generator: AnswerGenerator | None = None,
 ) -> RagAnswer:
     effective_language = (
         language
@@ -118,17 +123,42 @@ def build_grounded_answer(
             evidence_assessments=assessments,
         )
 
-    supporting_points: list[str] = []
-    references: list[str] = []
-    citations: list[str] = []
-    for item in accepted_results:
-        chunk_id = item.chunk.chunk_id
-        citations.append(chunk_id)
-        supporting_points.append(f"- {item.chunk.text} [{chunk_id}]")
-        references.append(
-            f"- [{chunk_id}] {item.chunk.title}; section {item.chunk.section}; "
-            f"source characters {item.chunk.start_offset}-{item.chunk.end_offset}"
+    if generator is not None:
+        system_prompt, user_prompt = build_generation_prompts(
+            question, [item.chunk for item in accepted_results]
         )
+        try:
+            generated = generator.generate(system_prompt, user_prompt)
+            validation = validate_generated_answer(
+                generated,
+                [item.chunk for item in accepted_results],
+                language=effective_language,
+            )
+            if validation.valid:
+                references = _format_references(
+                    item.chunk
+                    for item in accepted_results
+                    if item.chunk.chunk_id in validation.citations
+                )
+                return RagAnswer(
+                    answer=generated.strip() + "\n\nReferences:\n" + "\n".join(references),
+                    citations=list(validation.citations),
+                    refused=False,
+                    evidence_assessments=assessments,
+                    generation_status="generated",
+                    generation_reason=validation.reason,
+                )
+            fallback_reason = validation.reason
+        except Exception as error:
+            fallback_reason = f"generator failed ({type(error).__name__}); used extractive answer"
+    else:
+        fallback_reason = None
+
+    supporting_points = [
+        f"- {item.chunk.text} [{item.chunk.chunk_id}]" for item in accepted_results
+    ]
+    citations = [item.chunk.chunk_id for item in accepted_results]
+    references = _format_references(item.chunk for item in accepted_results)
 
     answer_heading = (
         "Answer (based only on the individually supported passages):\n"
@@ -146,4 +176,15 @@ def build_grounded_answer(
         citations=citations,
         refused=False,
         evidence_assessments=assessments,
+        generation_status="fallback" if generator is not None else "extractive",
+        generation_reason=fallback_reason,
     )
+
+
+def _format_references(chunks: Iterable[Chunk]) -> list[str]:
+    """Format references without trusting model-generated citation metadata."""
+    return [
+        f"- [{chunk.chunk_id}] {chunk.title}; section {chunk.section}; "
+        f"source characters {chunk.start_offset}-{chunk.end_offset}"
+        for chunk in chunks
+    ]

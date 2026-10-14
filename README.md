@@ -90,6 +90,8 @@ python3 -m src.cli --language sr --question "Koji dokument sadrži relevantne po
 
 Hybrid retrieval and cross-encoder reranking are optional. Install their local ONNX runtime with `python3 -m pip install -r requirements-embeddings.txt`. The first run downloads selected models; later runs can use `--offline-embeddings` and `--embedding-cache PATH`. Reranking scores a broader first-stage candidate set (`--candidate-k`) against the full question, then returns the highest-scoring diverse chunks. See `docs/rag_retrieval_guide.md` for evaluation and latency measurements.
 
+Answer generation uses an `AnswerGenerator` protocol in `src/generation.py`; integrations can pass a local or hosted adapter to `build_grounded_answer(..., generator=...)`. The default stays extractive. Generated claims must cite approved chunk IDs and pass a lexical evidence-overlap check or the system falls back to the extractive answer. No model API or credential is required by the starter.
+
 ## Corpus profiles
 
 - `default`: expanded corpus for chunking, retrieval, citation, and refusal experiments.

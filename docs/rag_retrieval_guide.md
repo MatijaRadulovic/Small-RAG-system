@@ -238,3 +238,11 @@ python3 -m scripts.benchmark_reranking --candidate-k 14
 ```
 
 On the ten held-out cases, reranking all 14 current chunks kept Recall@3 at `1.000` and source-span Recall@3 at `0.929`, while MRR improved `0.929`→`1.000`, nDCG `0.947`→`1.000`, and source-span MRR `0.762`→`0.929`. In one cached CPU run, first-stage query retrieval averaged `22.58 ms` (p95 `36.99 ms`) and cross-encoder scoring averaged `167.45 ms` (p95 `188.17 ms`); model loading took `222 ms` from the local cache. The gain is promising on this small English set and adds measurable query cost; it is not a broad quality guarantee. Keep lexical or hybrid retrieval without reranking when that cost is not appropriate.
+
+## 14. Optional grounded answer generation
+
+`AnswerGenerator` in `src/generation.py` is a small adapter boundary with separate system and user messages. An application can pass an implementation to `build_grounded_answer(..., generator=my_generator)`. The CLI still uses the built-in extractive answer because this repository does not choose a hosted service or require model credentials. Without an adapter, no generation dependency is loaded.
+
+Before calling the adapter, the pipeline filters evidence with its existing per-passage sufficiency check. The prompt puts instructions in the system message, passes the question and evidence as JSON data, labels retrieved text as untrusted, and tells the model to ignore commands inside that text. After generation, every factual sentence must cite an allowed chunk ID. The validator rejects unknown or missing citations and checks whether cited passages share at least two or half of the claim's meaningful tokens. It then creates References from trusted chunk metadata. Invalid output or model errors use the extractive answer; if retrieval found no sufficient passage, the generator is never called.
+
+This lexical claim check is a safety filter, not a proof of entailment: a passage can share words while failing to support a statement, and a correct paraphrase can use different words. A production system should add a stronger claim-to-evidence evaluator and human-reviewed examples. Tests cover malformed/unknown citations, unsupported claims, insufficient evidence, an injected instruction in a passage, conflicting passages, and adapter failures.
