@@ -35,13 +35,13 @@ The attached homework brief defines five outcomes. Outcomes 1 and 2 are complete
 
 ### Outcome 4: Refusal behavior
 
-- [ ] Define a clear evidence-sufficiency rule for weak or unrelated retrieval results.
-- [ ] Keep refusals free of citations and unsupported claims.
-- [ ] Add tests for unrelated questions and weak one-term overlap.
-- [ ] Add a reproducible check that prints retrieved context and the refusal output.
-- [ ] Run the full test suite and record the result.
-- [ ] Record the unsupported query, context, and refusal in `evidence.md` and this log.
-- [ ] Commit the completed Outcome 4 implementation and evidence.
+- [x] Define a clear evidence-sufficiency rule for weak or unrelated retrieval results.
+- [x] Keep refusals free of citations and unsupported claims.
+- [x] Add tests for unrelated questions and weak one-term overlap.
+- [x] Add a reproducible check that prints retrieved context and the refusal output.
+- [x] Run the full test suite and record the result.
+- [x] Record the unsupported query, context, and refusal in `evidence.md` and this log.
+- [x] Commit the completed Outcome 4 implementation and evidence.
 
 ### Outcome 5: Final evidence pair
 
@@ -206,3 +206,27 @@ python3 -m scripts.check_citations
 ```
 
 The supported answer cited each retrieved chunk once in its body and once in References. No non-retrieved ID appeared.
+
+## Step 8: Outcome 4 Refusal Behavior
+
+### Why
+
+The earlier implementation answered whenever the best score exceeded `0.02`. An unrelated question with one shared word could pass that threshold and produce an unsupported response.
+
+### Change
+
+Added an explicit sufficiency check. The best result must score at least `0.15` and match at least two meaningful query terms. A query containing only one meaningful term requires that one term. If this rule fails, the system returns the consistent refusal message with an empty citation list. `scripts/check_refusal.py` demonstrates that retrieval can return weak context while the answer layer still refuses.
+
+### Commands and result
+
+```bash
+python3 -m scripts.check_refusal
+# Retrieved weak matches: doc-4-chunk-0 (0.203), doc-1-chunk-0 (0.174)
+# PASS: weak partial overlap is refused without citations.
+
+./scripts/run_tests.sh
+# 15 passed in 0.06s
+
+python3 -m scripts.check_citations
+# PASS: the supported citation case still works after the stricter rule.
+```

@@ -61,9 +61,10 @@ pip install -r requirements.txt
 python3 -m scripts.analyze_chunking
 python3 -m scripts.check_retrieval
 python3 -m scripts.check_citations
+python3 -m scripts.check_refusal
 ```
 
-These commands compare chunking configurations, validate Outcome 2 top-k behavior, and verify Outcome 3 citation correspondence.
+These commands compare chunking configurations and validate retrieval, citation, and refusal behavior.
 
 ## Run demo CLI
 

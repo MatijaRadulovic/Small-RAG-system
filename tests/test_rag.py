@@ -31,3 +31,15 @@ def test_build_grounded_answer_refuses_unsupported_query() -> None:
     result = build_grounded_answer("Who was emperor of Mars?", chunks, top_k=2)
     assert result.refused is True
     assert result.citations == []
+
+
+def test_build_grounded_answer_refuses_weak_one_term_overlap() -> None:
+    chunks = build_chunks(load_default_corpus())
+    question = "What color is retrieval on Mars?"
+    retrieved = retrieve_top_k(question, chunks, k=2)
+    result = build_grounded_answer(question, chunks, top_k=2)
+
+    assert retrieved
+    assert result.refused is True
+    assert result.citations == []
+    assert "not have enough grounded evidence" in result.answer

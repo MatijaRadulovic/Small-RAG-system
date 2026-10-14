@@ -53,7 +53,14 @@ References:
 
 ## 4. Outcome 4: Refusal behavior
 
-Pending implementation and verification.
+- **Unsupported query:** `What color is retrieval on Mars?`
+- **Retrieved context:**
+  - `doc-4-chunk-0`, score `0.203`: “Retrieval evaluation starts with questions whose relevant source documents are known. Hit rate check”
+  - `doc-1-chunk-0`, score `0.174`: “Retrieval augmented generation combines retrieval with text generation. Before answering, the retrie”
+- **Why evidence is insufficient:** Both chunks match the word `retrieval`, but neither contains evidence about a color or Mars. The grounding rule requires two meaningful matched query terms for a multi-term question.
+- **Refusal output:** `I do not have enough grounded evidence in the provided corpus to answer that question.`
+- **Citations:** None
+- **Reproduce:** `python3 -m scripts.check_refusal`
 
 ## 5. Outcome 5: Final evidence pair
 
