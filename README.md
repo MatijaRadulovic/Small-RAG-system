@@ -35,6 +35,8 @@ rag-week-6-homework-starter/
   docs/
     homework-checklist.md
   scripts/
+    analyze_chunking.py
+    check_retrieval.py
     run_tests.sh
   requirements.txt
 ```
@@ -53,17 +55,26 @@ pip install -r requirements.txt
 ./scripts/run_tests.sh
 ```
 
+## Run homework analysis
+
+```bash
+python3 -m scripts.analyze_chunking
+python3 -m scripts.check_retrieval
+```
+
+The first command compares chunk sizes and overlaps over representative queries. The second prints and validates Outcome 2 evidence for `top_k=2` and `top_k=3`.
+
 ## Run demo CLI
 
 ```bash
-python -m src.cli --question "What is retrieval augmented generation?"
-python -m src.cli --question "Who won the world cup in 1958?"
-python -m src.cli --corpus-profile training-rag --question "Why are citations important in RAG?"
+python3 -m src.cli --question "What is retrieval augmented generation?"
+python3 -m src.cli --question "Who won the world cup in 1958?"
+python3 -m src.cli --corpus-profile training-rag --question "Why are citations important in RAG?"
 ```
 
 ## Corpus profiles
 
-- `default`: compact baseline corpus for Week 6 fundamentals.
+- `default`: expanded corpus for chunking, retrieval, citation, and refusal experiments.
 - `training-rag`: profile mirroring examples with focus on citations, references, and LLM-as-a-judge framing.
 
 ## Homework tasks for students

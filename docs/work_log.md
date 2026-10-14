@@ -1,0 +1,185 @@
+# Homework Work Log
+
+## Scope and Detailed Plan
+
+The attached homework brief defines five outcomes. Outcomes 1 and 2 are complete. Outcomes 3–5 will be implemented and committed separately, with tests and recorded evidence after each outcome.
+
+### Outcome 1: Chunking impact
+
+- [x] Read the homework brief, README, checklist, source modules, and existing tests.
+- [x] Identify representative queries with known source documents.
+- [x] Add a repeatable analysis script covering several chunk sizes and overlaps.
+- [x] Run the baseline analysis and record the metrics and retrieved chunk IDs.
+- [x] Compare configurations using hit rate, mean reciprocal rank (MRR), score, and chunk count.
+- [x] Select measured defaults and update both chunking functions and CLI arguments.
+- [x] Re-run the analysis and explain the observed chunking trade-off.
+
+### Outcome 2: Top-k retrieval
+
+- [x] Extend the default corpus with longer, topic-specific documents.
+- [x] Replace the length-biased lexical score with a clearer similarity calculation.
+- [x] Ensure results are filtered and sorted from highest to lowest relevance.
+- [x] Add checks for scorer behavior, ordering, and the `k` result limit.
+- [x] Capture reproducible `top_k=2` and `top_k=3` evidence.
+- [x] Run the complete test suite and record the result.
+
+### Outcome 3: Citation quality
+
+- [ ] Format supported answers with a clearly separated answer body and References section.
+- [ ] Include explicit chunk IDs next to every supporting statement.
+- [ ] Ensure every citation belongs to the exact retrieved result set.
+- [ ] Add tests for citation presence, reference formatting, and ID correspondence.
+- [ ] Run the full test suite and a reproducible supported CLI example.
+- [ ] Record the command, retrieved IDs, answer, and result in `evidence.md` and this log.
+- [ ] Commit the completed Outcome 3 implementation and evidence.
+
+### Outcome 4: Refusal behavior
+
+- [ ] Define a clear evidence-sufficiency rule for weak or unrelated retrieval results.
+- [ ] Keep refusals free of citations and unsupported claims.
+- [ ] Add tests for unrelated questions and weak one-term overlap.
+- [ ] Add a reproducible check that prints retrieved context and the refusal output.
+- [ ] Run the full test suite and record the result.
+- [ ] Record the unsupported query, context, and refusal in `evidence.md` and this log.
+- [ ] Commit the completed Outcome 4 implementation and evidence.
+
+### Outcome 5: Final evidence pair
+
+- [ ] Add one command that reproduces a complete supported and unsupported case.
+- [ ] Show each question, retrieved chunks and scores, final answer, citations, and refusal flag.
+- [ ] Confirm the supported answer cites only retrieved chunks.
+- [ ] Confirm the unsupported case refuses with no citations.
+- [ ] Run the evidence command and full test suite.
+- [ ] Complete all five sections of `evidence.md` and update the submission checklist status.
+- [ ] Commit the completed Outcome 5 evidence bundle.
+
+### Submission details
+
+- [ ] Record pair contributions and the demo lead (requires student names and assignment).
+
+## Step 1: Baseline and Chunking Experiment
+
+### Why
+
+The original defaults were `chunk_size=140` and `overlap=30`, but the repository contained no measured comparison. A useful decision needs repeatable queries whose expected source documents are known.
+
+### Change
+
+Added `scripts/analyze_chunking.py`. It tests five `(chunk_size, overlap)` pairs against three characteristic questions for RAG fundamentals, chunking, and refusal behavior. It prints every ranked result plus aggregate hit rate, MRR, mean top score, and chunk count.
+
+### Command
+
+```bash
+python3 -m scripts.analyze_chunking
+```
+
+### Result
+
+All five configurations achieved a 100% hit rate and `1.000` MRR: every expected document ranked first. The aggregate baseline was:
+
+| Chunk size | Overlap | Chunks | Mean top score |
+| ---: | ---: | ---: | ---: |
+| 80 | 0 | 6 | 0.444 |
+| 100 | 20 | 6 | 0.408 |
+| 140 | 30 | 6 | 0.315 |
+| 180 | 40 | 3 | 0.306 |
+| 220 | 50 | 3 | 0.306 |
+
+The `80/0` configuration had the largest score, partly because the original scorer divided matches by chunk length and therefore favored short chunks. Since all configurations had the same ranking quality, `100/20` was selected: it kept the next strongest score while preserving 20 characters across boundaries. Constants in `src/chunking.py` now define these defaults, and `src/cli.py` imports the same constants so the two interfaces cannot drift.
+
+The first attempted command, `.venv/bin/python -m scripts.analyze_chunking`, failed because this copied virtual environment points to a macOS Python path that does not exist on this Linux machine. The successful command was:
+
+```bash
+python3 -m scripts.analyze_chunking
+```
+
+## Step 2: Measured Defaults
+
+### Why
+
+The baseline showed equal first-place accuracy for every candidate, so score alone was not enough. Zero overlap also risks splitting a useful phrase at a chunk boundary.
+
+### Change
+
+Changed the defaults from `140/30` to `100/20`. Added `DEFAULT_CHUNK_SIZE` and `DEFAULT_OVERLAP` in `src/chunking.py`; both chunking functions and the CLI now share them.
+
+### Result
+
+After the corpus and scorer improvements, a second analysis confirmed the choice. All configurations still achieved `1.000` MRR, while `100/20` produced the highest mean top score (`0.465`). It created 31 focused chunks from the longer corpus. The runner recommends `100/20` using MRR first, then boundary-preserving overlap, mean score, and chunk count.
+
+## Step 3: Longer Evaluation Corpus
+
+### Why
+
+The original three documents were about 140 characters each, too short to show meaningful differences among larger chunk settings.
+
+### Change
+
+Expanded the three original sources into multi-sentence documents and added `doc-4` (retrieval evaluation) and `doc-5` (citation quality). The default corpus now has five documents, each at least 300 characters. The added topics also create plausible competing chunks instead of making every query trivial.
+
+### Result
+
+The experiment now produces between 14 and 32 chunks depending on configuration. The expected source remains rank 1 for all three characteristic queries.
+
+## Step 4: Similarity Scoring
+
+### Why
+
+The old score counted every matching token and divided by chunk length. Repeated terms could inflate relevance, common question words could create false matches, and short chunks received an unfair advantage.
+
+### Change
+
+`src/retrieval.py` now:
+
+1. removes a small set of English stop words;
+2. compares unique query and chunk terms using binary cosine similarity;
+3. combines 85% text similarity with a 15% title signal;
+4. filters by minimum score and sorts by descending score, then chunk ID for deterministic ties.
+
+For query term set `Q` and chunk term set `C`, the core score is `|Q ∩ C| / sqrt(|Q| × |C|)`. This stays between 0 and 1 and rewards shared meaningful terms without counting repetition multiple times.
+
+## Step 5: Outcome 2 Check
+
+### Command
+
+```bash
+python3 -m scripts.check_retrieval
+```
+
+### Result
+
+Query: `How do chunk size and overlap improve retrieval quality?`
+
+| k | Rank | Chunk | Score |
+| ---: | ---: | --- | ---: |
+| 2 | 1 | `doc-2-chunk-4` | 0.556 |
+| 2 | 2 | `doc-2-chunk-2` | 0.192 |
+| 3 | 1 | `doc-2-chunk-4` | 0.556 |
+| 3 | 2 | `doc-2-chunk-2` | 0.192 |
+| 3 | 3 | `doc-5-chunk-1` | 0.153 |
+
+The script asserted that each result count equals `k`, scores are descending, and the expected chunking document ranks first. It ended with `PASS`.
+
+## Step 6: Verification
+
+Added tests for meaningful-term similarity, the top-k limit and ordering, title relevance, and the longer corpus. Existing citation and refusal tests were retained.
+
+Commands and results:
+
+```bash
+python3 -m pytest -q
+# 13 passed in 0.06s
+
+python3 -m src.cli --question "How do chunk size and overlap improve retrieval quality?" --top-k 3
+# Grounded response; citations begin with doc-2-chunk-4 and doc-2-chunk-2.
+
+python3 -m src.cli --question "Who was emperor of Mars?"
+# Refused: True; Citations: None
+```
+
+The first attempt to run `./scripts/run_tests.sh` failed because the script called `python`, which is unavailable in this environment. The script was corrected to call `python3`, matching the README setup command, and was run again as the final suite check.
+
+```bash
+./scripts/run_tests.sh
+# 13 passed in 0.04s
+```
