@@ -22,6 +22,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--top-k", type=int, default=2, help="Number of retrieved chunks")
     parser.add_argument(
+        "--language",
+        choices=("en", "sr", "mixed"),
+        default="en",
+        help="Language stop-word set: English, Serbian, or combined",
+    )
+    parser.add_argument(
         "--corpus-profile",
         default="default",
         choices=list_corpus_profiles(),
@@ -34,7 +40,12 @@ def main() -> None:
     args = parse_args()
     corpus = load_corpus(args.corpus_profile)
     chunks = build_chunks(corpus, chunk_size=args.chunk_size, overlap=args.overlap)
-    result = build_grounded_answer(args.question, chunks, top_k=args.top_k)
+    result = build_grounded_answer(
+        args.question,
+        chunks,
+        top_k=args.top_k,
+        language=args.language,
+    )
 
     print("Question:")
     print(args.question)

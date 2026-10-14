@@ -16,9 +16,15 @@ class RagAnswer:
     refused: bool
 
 
-def has_sufficient_evidence(question: str, result: RetrievalResult) -> bool:
-    query_terms = set(tokenize(question))
-    evidence_terms = set(tokenize(f"{result.chunk.title} {result.chunk.text}"))
+def has_sufficient_evidence(
+    question: str,
+    result: RetrievalResult,
+    language: str = "en",
+) -> bool:
+    query_terms = set(tokenize(question, language=language))
+    evidence_terms = set(
+        tokenize(f"{result.chunk.title} {result.chunk.text}", language=language)
+    )
     matched_terms = len(query_terms & evidence_terms)
     required_matches = 1 if len(query_terms) == 1 else MIN_MATCHED_TERMS
     term_coverage = matched_terms / len(query_terms) if query_terms else 0.0
@@ -28,13 +34,18 @@ def has_sufficient_evidence(question: str, result: RetrievalResult) -> bool:
     )
 
 
-def build_grounded_answer(question: str, chunks: list[Chunk], top_k: int = 2) -> RagAnswer:
-    results = retrieve_top_k(question, chunks, k=top_k)
+def build_grounded_answer(
+    question: str,
+    chunks: list[Chunk],
+    top_k: int = 2,
+    language: str = "en",
+) -> RagAnswer:
+    results = retrieve_top_k(question, chunks, k=top_k, language=language)
     if not results:
         return RagAnswer(answer=REFUSAL_MESSAGE, citations=[], refused=True)
 
     best = results[0]
-    if not has_sufficient_evidence(question, best):
+    if not has_sufficient_evidence(question, best, language=language):
         return RagAnswer(answer=REFUSAL_MESSAGE, citations=[], refused=True)
 
     supporting_points: list[str] = []

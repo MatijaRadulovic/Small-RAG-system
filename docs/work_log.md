@@ -282,3 +282,17 @@ python3 -m src.cli --question "What is retrieval augmented generation?"
 ```
 
 All five evidence scripts passed. The evidence file was refreshed with the current scores and chunk IDs. The independent phases that follow will address per-result qualification and diversity of answer context.
+
+## Phase 1: Unicode and Language-Aware Tokenization
+
+### What changed
+
+Tokenization now applies Unicode NFKC normalization and `casefold()`, recognizes Latin and Cyrillic alphanumeric terms, and preserves identifiers such as `RAG-v2.1`. English, Serbian Latin/Cyrillic, and mixed stop-word sets are selectable with `--language en|sr|mixed`; retrieval and grounding use the same setting.
+
+### Why
+
+The earlier ASCII-only expression dropped Serbian letters and could not support a Serbian corpus. Case normalization also needed to handle decomposed accent characters consistently.
+
+### Decision and verification
+
+Unicode and Serbian retrieval tests pass. Stemming/lemmatization was deferred: the sample corpus is English, so it does not provide a labeled Serbian set to measure morphological matching without risking false conflation. The 15-query English chunking evaluation remains at 100% hit@1 and MRR `1.000`; unsupported evidence still refuses. `./scripts/run_tests.sh` reports 32 passed. The Serbian retrieval unit case uses a constructed Cyrillic chunk because the shipped sample corpus has no Serbian content.

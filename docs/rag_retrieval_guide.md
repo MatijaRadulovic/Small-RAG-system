@@ -55,9 +55,9 @@ DEFAULT_OVERLAP = 0
 
 the algorithm aims for chunks of about 180 characters and repeats no characters. Actual lengths vary because preserving language boundaries is more valuable than enforcing an exact number. This setting won the current 15-query evaluation; another corpus may benefit from overlap.
 
-## 3. Tokenization
+## 3. Unicode and language-aware tokenization
 
-Retrieval receives a question and converts it into lowercase word-like tokens. Common English stop words are removed.
+Retrieval normalizes Unicode text, applies `casefold()` for consistent case handling, and converts it into word-like tokens. The pattern accepts Latin and Cyrillic letters and can keep identifiers such as `rag-v2.1` together. Stop words are configurable as English (`en`), Serbian (`sr`), or the combined set (`mixed`).
 
 ```text
 Question: "How does the retrieval system find the evidence?"
@@ -66,7 +66,9 @@ Tokens:   ["retrieval", "system", "find", "evidence"]
 
 Words such as `the`, `does`, and `how` appear in many sentences and usually say little about the topic. Removing them lets important terms have more influence.
 
-Tokenization is still lexical: `retrieve`, `retrieval`, and `retrieved` are different tokens. The system does not yet understand synonyms or meaning in the way an embedding model can.
+The current sample corpus is in English, so English remains the default. For Serbian text, pass `--language sr`; use `--language mixed` when questions or documents combine English and Serbian.
+
+Tokenization is still lexical: `retrieve`, `retrieval`, and `retrieved` are different tokens. No stemming or lemmatization is enabled. The sample corpus does not contain enough labeled Serbian examples to measure whether a Serbian stemmer would improve relevance without merging unrelated words. The system does not yet understand synonyms or meaning in the way an embedding model can.
 
 ## 4. BM25 scoring
 

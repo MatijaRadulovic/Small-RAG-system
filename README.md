@@ -73,6 +73,7 @@ These commands compare chunking configurations, validate retrieval, citation, an
 python3 -m src.cli --question "What is retrieval augmented generation?"
 python3 -m src.cli --question "Who won the world cup in 1958?"
 python3 -m src.cli --corpus-profile training-rag --question "Why are citations important in RAG?"
+python3 -m src.cli --language sr --question "Koji dokument sadrži relevantne podatke?"
 ```
 
 ## Corpus profiles

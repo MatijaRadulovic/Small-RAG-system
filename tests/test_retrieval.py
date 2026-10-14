@@ -1,5 +1,5 @@
 from src.chunking import Chunk
-from src.retrieval import bm25_scores, lexical_score, retrieve_top_k
+from src.retrieval import bm25_scores, lexical_score, retrieve_top_k, tokenize
 
 
 def test_retrieve_top_k_orders_by_score_desc() -> None:
@@ -105,3 +105,47 @@ def test_bm25_returns_zero_for_unrelated_query() -> None:
         Chunk(chunk_id="b", doc_id="2", title="B", text="citation source"),
     ]
     assert bm25_scores("basketball playoffs", chunks) == [0.0, 0.0]
+
+
+def test_tokenize_normalizes_unicode_and_casefolds() -> None:
+    assert tokenize("Cafe\u0301 STRASSE") == ["café", "strasse"]
+
+
+def test_tokenize_supports_serbian_latin_and_cyrillic_stop_words() -> None:
+    assert tokenize("Šta su dokumenti?", language="sr") == ["dokumenti"]
+    assert tokenize("Како су документи?", language="sr") == ["документи"]
+
+
+def test_tokenize_preserves_versioned_identifiers() -> None:
+    assert tokenize("Use RAG-v2.1 now", language="en") == ["use", "rag-v2.1", "now"]
+
+
+def test_tokenize_rejects_unknown_language() -> None:
+    import pytest
+
+    with pytest.raises(ValueError):
+        tokenize("hello", language="xx")
+
+
+def test_retrieval_supports_serbian_tokens() -> None:
+    chunks = [
+        Chunk(
+            chunk_id="sr-1",
+            doc_id="sr",
+            title="Документација",
+            text="Документ садржи релевантне податке.",
+        ),
+        Chunk(
+            chunk_id="en-1",
+            doc_id="en",
+            title="Weather",
+            text="Rain and wind are expected tomorrow.",
+        ),
+    ]
+    results = retrieve_top_k(
+        "Који документ садржи релевантне податке?",
+        chunks,
+        k=1,
+        language="sr",
+    )
+    assert results[0].chunk.chunk_id == "sr-1"

@@ -30,14 +30,14 @@ The BM25 and boundary-aware chunking changes must become a measured baseline bef
 
 ## Phase 1: Unicode and Language-Aware Tokenization
 
-- [ ] Replace the ASCII-only token pattern with Unicode-aware normalization and tokenization.
-- [ ] Use Unicode normalization and `casefold()` so equivalent text forms compare consistently.
-- [ ] Preserve useful identifiers containing digits while documenting punctuation behavior.
-- [ ] Separate English and Serbian stop-word sets and select them through configuration.
-- [ ] Decide whether stemming or lemmatization improves this corpus; measure it rather than assuming.
-- [ ] Add examples for Serbian letters, mixed-language text, punctuation, identifiers, and inflected words.
-- [ ] Confirm unsupported questions still refuse after tokenization changes.
-- [ ] Commit as `Add Unicode-aware tokenization`.
+- [x] Replace the ASCII-only token pattern with Unicode-aware normalization and tokenization.
+- [x] Use Unicode normalization and `casefold()` so equivalent text forms compare consistently.
+- [x] Preserve useful identifiers containing digits while documenting punctuation behavior.
+- [x] Separate English and Serbian stop-word sets and select them through configuration.
+- [x] Decide whether stemming or lemmatization improves this corpus; defer until there is a labeled Serbian evaluation set rather than assume.
+- [x] Add examples for Serbian Latin and Cyrillic, identifiers, and composed Unicode.
+- [x] Confirm unsupported questions still refuse after tokenization changes.
+- [x] Commit as `Add Unicode-aware tokenization`.
 
 **Done when:** English and Serbian text tokenize predictably, no meaningful characters are lost, and retrieval metrics do not regress.
 
