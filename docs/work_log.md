@@ -324,3 +324,11 @@ An ID alone was not enough to locate or verify source material. Character offset
 ### Decision and verification
 
 Offsets are zero-based Python Unicode code-point indices with an exclusive end. Tests cover Unicode text, exact source extraction, repeated passages, and stable IDs when an unrelated document is added. Editing text before a span can change its ID and requires regenerating citations. `./scripts/run_tests.sh` reports 39 passed; citation and final-evidence checks pass with IDs such as `doc-5@0:195`.
+
+## Phase 4: Per-Result Evidence Validation
+
+Added `EvidenceAssessment` to report each retrieved passage's fused score, matched meaningful terms, term coverage, pass/fail result, and reason. The answer builder now checks every candidate against passage text, excludes weak passages from the answer and References, refuses if all candidates fail, and labels partial answers to show their restricted evidence scope. The citation demo now prints assessments alongside retrieved chunks.
+
+Why: retrieval returns the closest candidates even for unsupported questions, and a strong top result does not make lower-ranked passages trustworthy. Requiring every cited chunk to pass prevents a weak passage from gaining credibility just by appearing in top-k. Checking body text also prevents a matching title from being mistaken for supporting evidence.
+
+Tests cover a strong first result with two weak lower-ranked results, title-only overlap, full rejection, and assessment details. `./scripts/run_tests.sh` reports 42 passed. `python3 -m scripts.check_citations`, `python3 -m scripts.check_refusal`, and `python3 -m scripts.generate_evidence` all pass. For the supported query, `doc-5@0:195` passes with 80% coverage; `doc-2@415:519` is excluded at 20%. The unsupported query's candidates each match only one of three terms (33%), so it is refused with no citations. Updated `evidence.md`, `README.md`, and the beginner guide to match this behavior.

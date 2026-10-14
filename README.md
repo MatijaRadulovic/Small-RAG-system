@@ -7,6 +7,7 @@ This starter app helps students practice Week 6 concepts from the RAG lecture:
 - simple retrieval
 - answer generation with citations
 - refusal behavior when evidence is missing
+- per-passage evidence checks that filter weak results before citation
 
 ## Learning goals
 

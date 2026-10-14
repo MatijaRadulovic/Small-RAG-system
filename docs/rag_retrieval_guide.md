@@ -137,17 +137,19 @@ After scoring, retrieval:
 
 A search engine always tries to find the closest result, even when the corpus cannot answer the question. Therefore, `src/rag.py` performs a second check before producing an answer.
 
-For a multi-term question, the best result must:
+Each retrieved result receives an `EvidenceAssessment` with its fused retrieval score, matched query terms, query-term coverage, a pass/fail value, and an explanation. The check compares the question with passage text, not just the title, so a matching title cannot support unrelated content. For a multi-term question, each result must:
 
 - match at least two meaningful query terms; and
 - cover at least half of the meaningful query terms.
 
 The check uses term coverage instead of a raw BM25 score threshold. BM25 scores depend on the corpus, so a cosine-based cutoff cannot safely be reused after changing the scoring method. A future evaluation set can support a more detailed calibrated rule.
 
-If evidence is too weak, the system returns a refusal with no citations. This separation is useful:
+Weak results are removed before answer text and references are built. If every result is weak, the system returns a refusal with no citations. If some qualify, it clearly labels the answer as based only on individually supported passages. This separation is useful:
 
 - retrieval asks, “Which available chunks are closest?”
 - grounding asks, “Are those chunks strong enough to support an answer?”
+
+For example, the citation demo retrieves two chunks. The citation-quality passage covers 80% of meaningful query terms and is included; a metadata passage covers 20% and is excluded. This keeps the answer's citations aligned with evidence that passed the same explicit rule.
 
 ## 8. Why this is better than the previous scorer
 

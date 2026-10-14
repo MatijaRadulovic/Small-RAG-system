@@ -17,16 +17,32 @@ def main() -> None:
     retrieved_ids = [item.chunk.chunk_id for item in retrieved]
 
     assert result.refused is False
-    assert result.citations == retrieved_ids
+    expected_citations = [
+        assessment.chunk_id
+        for assessment in result.evidence_assessments
+        if assessment.sufficient
+    ]
+    assert result.citations == expected_citations
     assert "\n\nReferences:\n" in result.answer
-    assert all(result.answer.count(f"[{chunk_id}]") == 2 for chunk_id in retrieved_ids)
+    assert all(result.answer.count(f"[{chunk_id}]") == 2 for chunk_id in result.citations)
 
     print("OUTCOME 3: CITATION CHECK")
     print(f"Query: {QUERY}")
     print("Retrieved chunk IDs:", ", ".join(retrieved_ids))
+    print(
+        "Individually supported IDs:",
+        ", ".join(result.citations),
+    )
+    for assessment in result.evidence_assessments:
+        print(
+            f"  {assessment.chunk_id}: "
+            f"{len(assessment.matched_terms)} terms, "
+            f"{assessment.term_coverage:.0%} coverage, "
+            f"sufficient={assessment.sufficient} ({assessment.reason})"
+        )
     print("\nAnswer with citations:")
     print(result.answer)
-    print("\nPASS: answer citations exactly match the retrieved chunk IDs.")
+    print("\nPASS: answer citations exactly match individually supported retrieved chunks.")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Week 6 RAG Homework Evidence
 
-This evidence reflects the current sentence-aware chunker, reusable BM25 index, and reciprocal rank fusion. Re-run the commands below after changing the corpus, chunking settings, or retrieval code because rankings and chunk IDs can change.
+This evidence reflects the current sentence-aware chunker, reusable BM25 index, reciprocal rank fusion, and per-result evidence validation. Re-run the commands below after changing the corpus, chunking settings, or retrieval code because rankings and chunk IDs can change.
 
 ## 1. Outcome 1: Chunking impact
 
@@ -34,19 +34,18 @@ This evidence reflects the current sentence-aware chunker, reusable BM25 index, 
 
 - **Supported query:** `How do citations connect claims to retrieved chunks?`
 - **Retrieved chunk IDs:** `doc-5@0:195`, `doc-2@415:519`
+- **Evidence assessments:** `doc-5@0:195` matches 4 of 5 terms (80%, sufficient); `doc-2@415:519` matches 1 of 5 (20%, excluded).
 - **Answer with citations:**
 
 ```text
-Answer:
+Answer (based only on the individually supported passages):
 - Citations connect generated statements to retrieved chunks. Citation identifiers should match the chunk IDs supplied to the answer generator, and the cited text should actually support the claim. [doc-5@0:195]
-- Metadata such as document ID, title, and section supports filtering, citations, and source traceability. [doc-2@415:519]
 
 References:
 - [doc-5@0:195] Citation Quality; section Citation Quality; source characters 0-195
-- [doc-2@415:519] Chunking and Metadata; section Chunking and Metadata; source characters 415-519
 ```
 
-- **Verification:** The checker confirms the ordered citation list equals the retrieved chunk IDs. Phase 4 of `improvments_plan.md` will qualify each result independently before answer inclusion; the second passage is related to citation traceability but less directly supports the specific query.
+- **Verification:** The checker confirms citations exactly match the independently supported retrieved IDs. Weak candidates are assessed and excluded before answer and reference construction.
 - **Reproduce:** `python3 -m scripts.check_citations`
 
 ## 4. Outcome 4: Refusal behavior
@@ -55,7 +54,7 @@ References:
 - **Retrieved context:**
   - `doc-1@0:201`, fused score approximately `0.016`: RAG combines retrieval with generation and selects question-relevant passages.
   - `doc-4@0:156`, fused score approximately `0.016`: retrieval evaluation checks whether a relevant source appears among results.
-- **Why evidence is insufficient:** The chunks discuss retrieval but contain no information about Mars or a color. The grounding rule requires two matched meaningful terms and at least 50% query-term coverage.
+- **Why evidence is insufficient:** Both chunks match only `retrieval` (1 of 3 meaningful terms, 33% coverage), below the rule of two matches and 50% coverage. Neither passage mentions Mars or a color.
 - **Refusal output:** `I do not have enough grounded evidence in the provided corpus to answer that question.`
 - **Citations:** None
 - **Reproduce:** `python3 -m scripts.check_refusal`
@@ -71,11 +70,11 @@ Question: How do citations connect claims to retrieved chunks?
 Retrieved:
 - doc-5@0:195 | Citation Quality | fused score≈0.016
 - doc-2@415:519 | Chunking and Metadata | fused score≈0.016
-Citations: doc-5@0:195, doc-2@415:519
+Citations: doc-5@0:195
 Refused: False
 ```
 
-The printed answer and full retrieved passages are included in the command output. The evidence check confirms that citations correspond to retrieved IDs.
+The citation-quality passage passes at 80% query-term coverage. The metadata passage fails at 20% and is omitted from the answer. The command prints full retrieved passages, their evidence assessments, and the filtered answer.
 
 ### Unsupported case
 
@@ -95,5 +94,5 @@ The system refuses because the retrieved text does not answer the color or Mars 
 
 ```text
 ./scripts/run_tests.sh
-39 passed in 0.15s
+42 passed in 0.20s
 ```

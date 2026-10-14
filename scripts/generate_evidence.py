@@ -19,9 +19,18 @@ def print_case(
     print(f"{label} CASE")
     print(f"Question: {question}")
     print("Retrieved chunks:")
-    for item in retrieved:
-        chunk: Chunk = item.chunk
-        print(f"- {chunk.chunk_id} | {chunk.title} | score={item.score:.3f}")
+    assessments = {item.chunk_id: item for item in result.evidence_assessments}
+    for retrieval in retrieved:
+        chunk: Chunk = retrieval.chunk
+        assessment = assessments.get(chunk.chunk_id)
+        support = (
+            f"supported={assessment.sufficient} "
+            f"| coverage={assessment.term_coverage:.0%}"
+            if assessment is not None
+            else "evidence assessment unavailable"
+        )
+        print(f"- {chunk.chunk_id} | {chunk.title} | score={retrieval.score:.3f}")
+        print(f"  Evidence: {support}")
         print(f"  {chunk.text}")
     print("Answer:")
     print(result.answer)
@@ -35,9 +44,12 @@ def main() -> None:
 
     supported_retrieval = retrieve_top_k(SUPPORTED_QUERY, index, k=2)
     supported_result = build_grounded_answer(SUPPORTED_QUERY, index, top_k=2)
-    supported_ids = [item.chunk.chunk_id for item in supported_retrieval]
+    supported_ids = [
+        item.chunk_id for item in supported_result.evidence_assessments if item.sufficient
+    ]
     assert supported_result.refused is False
     assert supported_result.citations == supported_ids
+    assert set(supported_ids) <= {item.chunk.chunk_id for item in supported_retrieval}
 
     unsupported_retrieval = retrieve_top_k(UNSUPPORTED_QUERY, index, k=2)
     unsupported_result = build_grounded_answer(UNSUPPORTED_QUERY, index, top_k=2)

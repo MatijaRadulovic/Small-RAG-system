@@ -73,15 +73,15 @@ The BM25 and boundary-aware chunking changes must become a measured baseline bef
 
 The current answer decision checks the best result and may include weaker lower-ranked chunks. Each cited result must qualify independently.
 
-- [ ] Create a structured evidence assessment containing score, matched terms, coverage, and pass/fail reason.
-- [ ] Apply the sufficiency rule to every retrieved result.
-- [ ] Exclude weak results before constructing the answer and References section.
-- [ ] Refuse when no result passes, even if retrieval returned candidates.
-- [ ] Allow a partial answer only when its supported scope is clearly stated.
-- [ ] Ensure every answer citation belongs to the filtered evidence set.
-- [ ] Add tests where rank 1 is strong but ranks 2–3 are irrelevant.
-- [ ] Add tests where all candidates are weak or only a title matches.
-- [ ] Commit as `Validate every cited retrieval result`.
+- [x] Create a structured evidence assessment containing score, matched terms, coverage, and pass/fail reason.
+- [x] Apply the sufficiency rule to every retrieved result.
+- [x] Exclude weak results before constructing the answer and References section.
+- [x] Refuse when no result passes, even if retrieval returned candidates.
+- [x] Allow a partial answer only when its supported scope is clearly stated.
+- [x] Ensure every answer citation belongs to the filtered evidence set.
+- [x] Add tests where rank 1 is strong but ranks 2–3 are irrelevant.
+- [x] Add tests where all candidates are weak or only a title matches.
+- [x] Commit as `Validate every cited retrieval result`.
 
 **Done when:** no chunk is cited merely because another chunk passed the grounding check.
 
