@@ -1,13 +1,29 @@
 from src.chunking import build_chunks
 from src.corpus import load_default_corpus
 from src.rag import build_grounded_answer
+from src.retrieval import retrieve_top_k
 
 
 def test_build_grounded_answer_returns_citations_for_supported_query() -> None:
     chunks = build_chunks(load_default_corpus(), chunk_size=120, overlap=20)
-    result = build_grounded_answer("What is retrieval augmented generation?", chunks, top_k=2)
+    question = "What is retrieval augmented generation?"
+    retrieved = retrieve_top_k(question, chunks, k=2)
+    result = build_grounded_answer(question, chunks, top_k=2)
     assert result.refused is False
-    assert len(result.citations) >= 1
+    assert result.citations == [item.chunk.chunk_id for item in retrieved]
+
+
+def test_supported_answer_separates_body_and_references() -> None:
+    chunks = build_chunks(load_default_corpus())
+    result = build_grounded_answer(
+        "How do citations connect claims to retrieved chunks?",
+        chunks,
+        top_k=2,
+    )
+    assert result.answer.startswith("Answer:\n")
+    assert "\n\nReferences:\n" in result.answer
+    for citation in result.citations:
+        assert result.answer.count(f"[{citation}]") == 2
 
 
 def test_build_grounded_answer_refuses_unsupported_query() -> None:

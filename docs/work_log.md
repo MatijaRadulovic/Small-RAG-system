@@ -25,13 +25,13 @@ The attached homework brief defines five outcomes. Outcomes 1 and 2 are complete
 
 ### Outcome 3: Citation quality
 
-- [ ] Format supported answers with a clearly separated answer body and References section.
-- [ ] Include explicit chunk IDs next to every supporting statement.
-- [ ] Ensure every citation belongs to the exact retrieved result set.
-- [ ] Add tests for citation presence, reference formatting, and ID correspondence.
-- [ ] Run the full test suite and a reproducible supported CLI example.
-- [ ] Record the command, retrieved IDs, answer, and result in `evidence.md` and this log.
-- [ ] Commit the completed Outcome 3 implementation and evidence.
+- [x] Format supported answers with a clearly separated answer body and References section.
+- [x] Include explicit chunk IDs next to every supporting statement.
+- [x] Ensure every citation belongs to the exact retrieved result set.
+- [x] Add tests for citation presence, reference formatting, and ID correspondence.
+- [x] Run the full test suite and a reproducible supported example.
+- [x] Record the command, retrieved IDs, answer, and result in `evidence.md` and this log.
+- [x] Commit the completed Outcome 3 implementation and evidence.
 
 ### Outcome 4: Refusal behavior
 
@@ -183,3 +183,26 @@ The first attempt to run `./scripts/run_tests.sh` failed because the script call
 ./scripts/run_tests.sh
 # 13 passed in 0.04s
 ```
+
+## Step 7: Outcome 3 Citation Quality
+
+### Why
+
+The earlier answer placed chunk IDs before raw passages, but it did not clearly separate the answer body from its references. The homework requires explicit citations that can be checked against retrieval output.
+
+### Change
+
+Supported answers now contain an `Answer` section where each evidence statement ends with `[chunk-id]`, followed by a separate `References` section mapping every ID to its document title. The citation list is built from the same retrieval results. `scripts/check_citations.py` independently retrieves the expected chunks and checks exact list equality, formatting, and citation occurrence.
+
+### Commands and result
+
+```bash
+python3 -m scripts.check_citations
+# Retrieved: doc-5-chunk-0, doc-2-chunk-6
+# PASS: answer citations exactly match the retrieved chunk IDs.
+
+./scripts/run_tests.sh
+# 14 passed in 0.06s
+```
+
+The supported answer cited each retrieved chunk once in its body and once in References. No non-retrieved ID appeared.

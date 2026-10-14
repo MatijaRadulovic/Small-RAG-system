@@ -34,7 +34,22 @@
 
 ## 3. Outcome 3: Citation quality
 
-Pending implementation and verification.
+- **Supported query:** `How do citations connect claims to retrieved chunks?`
+- **Retrieved chunk IDs:** `doc-5-chunk-0`, `doc-2-chunk-6`
+- **Answer with citations:**
+
+```text
+Answer:
+- Citations connect generated statements to retrieved chunks. Citation identifiers should match the ch [doc-5-chunk-0]
+- ng, citations, and source traceability. [doc-2-chunk-6]
+
+References:
+- [doc-5-chunk-0] Citation Quality
+- [doc-2-chunk-6] Chunking and Metadata
+```
+
+- **Verification:** The checker compared `RagAnswer.citations` with the ordered retrieved IDs and confirmed exact equality. Each ID appears once beside supporting text and once in References.
+- **Reproduce:** `python3 -m scripts.check_citations`
 
 ## 4. Outcome 4: Refusal behavior
 

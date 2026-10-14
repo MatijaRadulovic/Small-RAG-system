@@ -23,11 +23,19 @@ def build_grounded_answer(question: str, chunks: list[Chunk], top_k: int = 2) ->
     if best.score < 0.02:
         return RagAnswer(answer=REFUSAL_MESSAGE, citations=[], refused=True)
 
-    supporting_points = []
-    citations = []
+    supporting_points: list[str] = []
+    references: list[str] = []
+    citations: list[str] = []
     for item in results:
-        citations.append(item.chunk.chunk_id)
-        supporting_points.append(f"[{item.chunk.chunk_id}] {item.chunk.text}")
+        chunk_id = item.chunk.chunk_id
+        citations.append(chunk_id)
+        supporting_points.append(f"- {item.chunk.text} [{chunk_id}]")
+        references.append(f"- [{chunk_id}] {item.chunk.title}")
 
-    answer = "Grounded response based on retrieved context:\n" + "\n".join(supporting_points)
+    answer = (
+        "Answer:\n"
+        + "\n".join(supporting_points)
+        + "\n\nReferences:\n"
+        + "\n".join(references)
+    )
     return RagAnswer(answer=answer, citations=citations, refused=False)

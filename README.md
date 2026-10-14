@@ -60,9 +60,10 @@ pip install -r requirements.txt
 ```bash
 python3 -m scripts.analyze_chunking
 python3 -m scripts.check_retrieval
+python3 -m scripts.check_citations
 ```
 
-The first command compares chunk sizes and overlaps over representative queries. The second prints and validates Outcome 2 evidence for `top_k=2` and `top_k=3`.
+These commands compare chunking configurations, validate Outcome 2 top-k behavior, and verify Outcome 3 citation correspondence.
 
 ## Run demo CLI
 
