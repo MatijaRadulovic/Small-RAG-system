@@ -1,73 +1,48 @@
 import argparse
+import json
 
-from .chunking import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, build_chunks
+from .chunking import build_chunks
+from .config import RagConfig
 from .corpus import list_corpus_profiles, load_corpus
-from .embeddings import DEFAULT_EMBEDDING_MODEL, FastEmbedProvider
-from .hybrid_retrieval import HybridRetriever
 from .rag import build_grounded_answer
-from .retrieval import BM25Index
-from .reranking import DEFAULT_RERANKER_MODEL, FastEmbedReranker, RerankingRetriever
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Week 6 RAG homework starter")
     parser.add_argument("--question", required=True, help="Question to ask over the local corpus")
-    parser.add_argument(
-        "--chunk-size",
-        type=int,
-        default=DEFAULT_CHUNK_SIZE,
-        help=f"Chunk size in characters (default: {DEFAULT_CHUNK_SIZE})",
-    )
-    parser.add_argument(
-        "--overlap",
-        type=int,
-        default=DEFAULT_OVERLAP,
-        help=f"Chunk overlap in characters (default: {DEFAULT_OVERLAP})",
-    )
-    parser.add_argument("--top-k", type=int, default=2, help="Number of retrieved chunks")
+    parser.add_argument("--chunk-size", type=int, default=RagConfig.chunk_size)
+    parser.add_argument("--overlap", type=int, default=RagConfig.overlap)
+    parser.add_argument("--top-k", type=int, default=RagConfig.top_k)
     parser.add_argument(
         "--retrieval-mode",
         choices=("lexical", "hybrid"),
-        default="lexical",
+        default=RagConfig.retrieval_mode,
         help="Lexical BM25 or local embedding plus BM25 retrieval",
     )
-    parser.add_argument(
-        "--embedding-model",
-        default=DEFAULT_EMBEDDING_MODEL,
-        help="FastEmbed model ID used with --retrieval-mode hybrid",
-    )
-    parser.add_argument(
-        "--embedding-cache",
-        help="Directory for downloaded local model files",
-    )
+    parser.add_argument("--embedding-model", default=RagConfig.embedding_model)
+    parser.add_argument("--embedding-cache", default=".cache/fastembed")
+    parser.add_argument("--index-cache", default=".cache/rag-index")
     parser.add_argument(
         "--offline-embeddings",
         action="store_true",
         help="Require selected embedding/reranker models to already exist in cache",
     )
     parser.add_argument("--rerank", action="store_true", help="Rerank a broader candidate set")
-    parser.add_argument(
-        "--candidate-k",
-        type=int,
-        default=20,
-        help="First-stage candidate count to send to the optional reranker",
-    )
-    parser.add_argument(
-        "--reranker-model",
-        default=DEFAULT_RERANKER_MODEL,
-        help="FastEmbed cross-encoder model used with --rerank",
-    )
-    parser.add_argument(
-        "--max-per-source",
-        type=int,
-        default=2,
-        help="Maximum retrieved chunks from one source document (default: 2)",
-    )
+    parser.add_argument("--candidate-k", type=int, default=RagConfig.candidate_k)
+    parser.add_argument("--reranker-model", default=RagConfig.reranker_model)
+    parser.add_argument("--max-per-source", type=int, default=RagConfig.max_per_source)
     parser.add_argument(
         "--language",
         choices=("en", "sr", "mixed"),
-        default="en",
-        help="Language stop-word set: English, Serbian, or combined",
+        default=RagConfig.language,
+    )
+    parser.add_argument("--semantic-weight", type=float, default=RagConfig.semantic_weight)
+    parser.add_argument("--rrf-constant", type=int, default=RagConfig.rrf_constant)
+    parser.add_argument(
+        "--min-evidence-matches", type=int, default=RagConfig.min_evidence_matches
+    )
+    parser.add_argument(
+        "--min-evidence-coverage", type=float, default=RagConfig.min_evidence_coverage
     )
     parser.add_argument(
         "--corpus-profile",
@@ -75,40 +50,57 @@ def parse_args() -> argparse.Namespace:
         choices=list_corpus_profiles(),
         help="Corpus profile: default or training-rag",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print a structured trace without query or passage text",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    corpus = load_corpus(args.corpus_profile)
-    chunks = build_chunks(corpus, chunk_size=args.chunk_size, overlap=args.overlap)
-    if args.retrieval_mode == "hybrid":
-        try:
-            provider = FastEmbedProvider(
-                args.embedding_model,
-                cache_dir=args.embedding_cache,
-                local_files_only=args.offline_embeddings,
-            )
-        except RuntimeError as error:
-            raise SystemExit(str(error)) from error
-        index = HybridRetriever(chunks, provider, language=args.language)
-    else:
-        index = BM25Index(chunks, language=args.language)
-    if args.rerank:
-        try:
-            reranker = FastEmbedReranker(
-                args.reranker_model,
-                cache_dir=args.embedding_cache,
-                local_files_only=args.offline_embeddings,
-            )
-        except RuntimeError as error:
-            raise SystemExit(str(error)) from error
-        index = RerankingRetriever(index, reranker, candidate_k=args.candidate_k)
+    config = RagConfig(
+        chunk_size=args.chunk_size,
+        overlap=args.overlap,
+        top_k=args.top_k,
+        retrieval_mode=args.retrieval_mode,
+        language=args.language,
+        max_per_source=args.max_per_source,
+        min_evidence_matches=args.min_evidence_matches,
+        min_evidence_coverage=args.min_evidence_coverage,
+        semantic_weight=args.semantic_weight,
+        rrf_constant=args.rrf_constant,
+        embedding_model=args.embedding_model,
+        rerank=args.rerank,
+        candidate_k=args.candidate_k,
+        reranker_model=args.reranker_model,
+        model_cache_dir=args.embedding_cache,
+        index_cache_dir=args.index_cache,
+        offline_models=args.offline_embeddings,
+    )
+    try:
+        config.validate()
+    except ValueError as error:
+        raise SystemExit(f"Invalid RAG configuration: {error}") from error
+
+    chunks = build_chunks(
+        load_corpus(args.corpus_profile),
+        chunk_size=config.chunk_size,
+        overlap=config.overlap,
+    )
+    try:
+        index = config.build_retriever(chunks)
+    except (RuntimeError, ValueError) as error:
+        raise SystemExit(str(error)) from error
     result = build_grounded_answer(
         args.question,
         index,
-        top_k=args.top_k,
-        max_per_source=args.max_per_source,
+        top_k=config.top_k,
+        language=config.language,
+        max_per_source=config.max_per_source,
+        min_evidence_matches=config.min_evidence_matches,
+        min_evidence_coverage=config.min_evidence_coverage,
     )
 
     print("Question:")
@@ -116,11 +108,14 @@ def main() -> None:
     print("\nAnswer:")
     print(result.answer)
     print("\nCorpus profile:", args.corpus_profile)
-    print("Retrieval mode:", args.retrieval_mode)
-    if args.rerank:
-        print("Reranker:", args.reranker_model, f"(candidate_k={args.candidate_k})")
+    print("Retrieval mode:", config.retrieval_mode)
+    if config.rerank:
+        print("Reranker:", config.reranker_model, f"(candidate_k={config.candidate_k})")
     print("\nRefused:", result.refused)
     print("Citations:", ", ".join(result.citations) if result.citations else "None")
+    if args.debug and result.trace is not None:
+        print("\nTrace:")
+        print(json.dumps(result.trace.to_dict(), indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":

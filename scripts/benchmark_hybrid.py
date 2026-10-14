@@ -18,6 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
     parser.add_argument("--embedding-cache", default=".cache/fastembed")
+    parser.add_argument("--index-cache", default=".cache/rag-index")
     parser.add_argument("--offline-embeddings", action="store_true")
     parser.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE)
     parser.add_argument("--overlap", type=int, default=DEFAULT_OVERLAP)
@@ -62,7 +63,7 @@ def main() -> None:
     )
     model_load_seconds = time.perf_counter() - load_started
     build_started = time.perf_counter()
-    retriever = HybridRetriever(chunks, provider)
+    retriever = HybridRetriever(chunks, provider, embedding_cache_dir=args.index_cache)
     index_build_seconds = time.perf_counter() - build_started
 
     questions = [
@@ -87,6 +88,7 @@ def main() -> None:
     print(f"Chunks: {len(chunks)}; dimensions: {retriever.semantic_index.dimension}")
     print(f"Model load/init: {model_load_seconds * 1000:.1f} ms")
     print(f"Chunk embedding/index build: {index_build_seconds * 1000:.1f} ms")
+    print(f"Semantic vector cache: {retriever.semantic_index.cache_status}")
     print(
         f"Warm query mean: {statistics.mean(latencies) * 1000:.2f} ms; "
         f"p95: {latencies[p95_index] * 1000:.2f} ms ({len(latencies)} runs)"

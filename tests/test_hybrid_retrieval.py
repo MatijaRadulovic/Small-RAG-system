@@ -132,3 +132,43 @@ def test_hybrid_configuration_is_validated() -> None:
 def test_provider_protocol_is_structural() -> None:
     provider: EmbeddingProvider = FakeEmbeddingProvider()
     assert provider.model_name == "fake-semantic-test-model"
+
+
+def test_semantic_index_cache_reuses_vectors_and_invalidates_on_corpus_change(tmp_path) -> None:
+    class CountingProvider(FakeEmbeddingProvider):
+        def __init__(self) -> None:
+            self.passage_calls = 0
+
+        def embed_passages(self, texts: list[str]) -> list[Embedding]:
+            self.passage_calls += 1
+            return super().embed_passages(texts)
+
+    chunks = [Chunk(chunk_id="car", doc_id="cars", title="Cars", text="A road vehicle.")]
+    first_provider = CountingProvider()
+    first = SemanticIndex(chunks, first_provider, cache_dir=tmp_path)
+    second_provider = CountingProvider()
+    second = SemanticIndex(chunks, second_provider, cache_dir=tmp_path)
+
+    assert first.cache_status == "stored"
+    assert second.cache_status == "hit"
+    assert first_provider.passage_calls == 1
+    assert second_provider.passage_calls == 0
+
+    changed = [Chunk(chunk_id="car", doc_id="cars", title="Cars", text="A motor vehicle.")]
+    third_provider = CountingProvider()
+    third = SemanticIndex(changed, third_provider, cache_dir=tmp_path)
+    assert third.cache_status == "stored"
+    assert third_provider.passage_calls == 1
+
+
+def test_corrupt_semantic_cache_is_rebuilt(tmp_path) -> None:
+    chunks = [Chunk(chunk_id="car", doc_id="cars", title="Cars", text="A road vehicle.")]
+    SemanticIndex(chunks, FakeEmbeddingProvider(), cache_dir=tmp_path)
+    cache_file = next(tmp_path.glob("*.json"))
+    cache_file.write_text("not-json", encoding="utf-8")
+
+    with pytest.warns(RuntimeWarning, match="Ignoring invalid semantic index cache"):
+        index = SemanticIndex(chunks, FakeEmbeddingProvider(), cache_dir=tmp_path)
+
+    assert index.cache_status == "rebuilt"
+    assert index.search("car", 1)[0][0].chunk_id == "car"

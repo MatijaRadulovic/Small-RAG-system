@@ -159,15 +159,15 @@ The current answer decision checks the best result and may include weaker lower-
 
 ## Phase 10: Observability, Configuration, and Performance
 
-- [ ] Move chunking, retrieval, grounding, embedding, and reranking settings into one validated configuration object.
-- [ ] Log query ID, selected chunk IDs, component scores, refusal reason, and timing without storing unnecessary sensitive text.
-- [ ] Add optional human-readable debug output for learning and troubleshooting.
-- [ ] Cache indexes and embeddings using a corpus-version identifier.
-- [ ] Rebuild cached data only when sources or indexing configuration change.
-- [ ] Measure indexing time, query latency, and memory use on the planned book corpus.
-- [ ] Add graceful errors for missing models, corrupt indexes, and invalid configuration.
-- [ ] Document reproducible setup and offline behavior.
-- [ ] Commit as `Add RAG observability and caching`.
+- [x] Move chunking, retrieval, grounding, embedding, and reranking settings into one validated configuration object.
+- [x] Log query ID, selected chunk IDs, component scores, refusal reason, and timing without storing unnecessary sensitive text.
+- [x] Add optional human-readable debug output for learning and troubleshooting.
+- [x] Cache indexes and embeddings using a corpus-version identifier.
+- [x] Rebuild cached data only when sources or indexing configuration change.
+- [ ] Measure indexing time, query latency, and memory use on the planned book corpus (deferred: the book corpus is not in this checkout; bundled-corpus benchmark recorded).
+- [x] Add graceful errors for missing models, corrupt indexes, and invalid configuration.
+- [x] Document reproducible setup and offline behavior.
+- [x] Commit as `Add RAG observability and caching`.
 
 **Done when:** retrieval decisions can be explained, performance is measurable, and cached artifacts are safely reproducible.
 

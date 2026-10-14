@@ -2,9 +2,11 @@
 
 from collections.abc import Sequence
 from math import isfinite, sqrt
+from pathlib import Path
 
 from .chunking import Chunk
 from .embeddings import Embedding, EmbeddingProvider
+from .index_cache import load_vectors, store_vectors
 from .retrieval import (
     BM25Index,
     RRF_CONSTANT,
@@ -28,10 +30,24 @@ def _cosine(left: Embedding, right: Embedding) -> float:
 class SemanticIndex:
     """Embeddings and cosine-ranking for an immutable chunk collection."""
 
-    def __init__(self, chunks: Sequence[Chunk], provider: EmbeddingProvider) -> None:
+    def __init__(
+        self,
+        chunks: Sequence[Chunk],
+        provider: EmbeddingProvider,
+        *,
+        cache_dir: str | Path | None = None,
+    ) -> None:
         self.chunks = tuple(chunks)
         self.provider = provider
-        vectors = provider.embed_passages([chunk.text for chunk in self.chunks])
+        cached_vectors: list[Embedding] | None = None
+        self.cache_status = "disabled"
+        if cache_dir is not None:
+            cached_vectors, self.cache_status = load_vectors(
+                cache_dir, provider.model_name, self.chunks
+            )
+        vectors = cached_vectors or provider.embed_passages(
+            [chunk.text for chunk in self.chunks]
+        )
         if len(vectors) != len(self.chunks):
             raise ValueError("embedding provider returned the wrong number of passages")
         dimensions = {len(vector) for vector in vectors}
@@ -46,6 +62,9 @@ class SemanticIndex:
             raise ValueError("passage embeddings must be finite, non-empty, and non-zero")
         self._vectors = tuple(vectors)
         self.dimension = next(iter(dimensions), 0)
+        if cache_dir is not None and cached_vectors is None:
+            store_vectors(cache_dir, provider.model_name, self.chunks, self._vectors)
+            self.cache_status = "rebuilt" if self.cache_status == "corrupt" else "stored"
 
     def rank(self, query: str) -> list[tuple[Chunk, float]]:
         if not self.chunks:
@@ -74,6 +93,7 @@ class HybridRetriever:
         language: str = "en",
         semantic_weight: float = 1.0,
         rrf_constant: int = RRF_CONSTANT,
+        embedding_cache_dir: str | Path | None = None,
     ) -> None:
         if not isfinite(semantic_weight) or semantic_weight < 0:
             raise ValueError("semantic_weight must be >= 0")
@@ -84,7 +104,9 @@ class HybridRetriever:
         self.semantic_weight = semantic_weight
         self.rrf_constant = rrf_constant
         self.lexical_index = BM25Index(self.chunks, language=language)
-        self.semantic_index = SemanticIndex(self.chunks, provider)
+        self.semantic_index = SemanticIndex(
+            self.chunks, provider, cache_dir=embedding_cache_dir
+        )
 
     def retrieve_top_k(
         self,

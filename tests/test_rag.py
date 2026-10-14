@@ -276,3 +276,29 @@ def test_generator_exception_uses_extractive_fallback() -> None:
     assert result.generation_status == "fallback"
     assert "RuntimeError" in (result.generation_reason or "")
     assert result.citations
+
+
+def test_request_trace_has_scores_timing_and_no_query_or_passage_text() -> None:
+    question = "What does the generator do with retrieved passages?"
+    result = build_grounded_answer(question, build_chunks(load_default_corpus()))
+
+    assert result.trace is not None
+    trace = result.trace.to_dict()
+    serialized = str(trace)
+    assert trace["query_id"]
+    assert trace["retrieval_mode"] == "lexical"
+    assert trace["selected_chunks"][0]["chunk_id"] in result.citations
+    assert trace["selected_chunks"][0]["score"] > 0
+    assert trace["timings_ms"]["retrieval"] >= 0
+    assert question not in serialized
+    assert "The generator then uses those passages" not in serialized
+
+
+def test_refusal_trace_explains_why_evidence_was_rejected() -> None:
+    result = build_grounded_answer(
+        "What color is retrieval on Mars?", build_chunks(load_default_corpus())
+    )
+
+    assert result.refused is True
+    assert result.trace is not None
+    assert result.trace.refusal_reason == "no retrieved candidate passed evidence checks"
