@@ -45,13 +45,13 @@ The attached homework brief defines five outcomes. Outcomes 1 and 2 are complete
 
 ### Outcome 5: Final evidence pair
 
-- [ ] Add one command that reproduces a complete supported and unsupported case.
-- [ ] Show each question, retrieved chunks and scores, final answer, citations, and refusal flag.
-- [ ] Confirm the supported answer cites only retrieved chunks.
-- [ ] Confirm the unsupported case refuses with no citations.
-- [ ] Run the evidence command and full test suite.
-- [ ] Complete all five sections of `evidence.md` and update the submission checklist status.
-- [ ] Commit the completed Outcome 5 evidence bundle.
+- [x] Add one command that reproduces a complete supported and unsupported case.
+- [x] Show each question, retrieved chunks and scores, final answer, citations, and refusal flag.
+- [x] Confirm the supported answer cites only retrieved chunks.
+- [x] Confirm the unsupported case refuses with no citations.
+- [x] Run the evidence command and full test suite.
+- [x] Complete all five sections of `evidence.md` and update the submission checklist status.
+- [x] Commit the completed Outcome 5 evidence bundle.
 
 ### Submission details
 
@@ -230,3 +230,25 @@ python3 -m scripts.check_refusal
 python3 -m scripts.check_citations
 # PASS: the supported citation case still works after the stricter rule.
 ```
+
+## Step 9: Outcome 5 Final Evidence Pair
+
+### Why
+
+The final submission needs one supported and one unsupported case with complete, reproducible retrieval and answer output. Separate commands can make it harder to prove that both cases use the same final implementation.
+
+### Change
+
+Added `scripts/generate_evidence.py`. One execution builds the final corpus and chunks, runs both queries, prints every retrieved chunk with score and text, prints each final answer and citation list, and displays the refusal flag. Assertions confirm that the supported citations exactly equal the retrieved IDs and that the unsupported case refuses without citations.
+
+### Commands and result
+
+```bash
+python3 -m scripts.generate_evidence
+# PASS: supported and unsupported evidence satisfy the homework checks.
+
+./scripts/run_tests.sh
+# 15 passed in 0.05s
+```
+
+All individual evidence commands were also rerun. Outcomes 1–5 passed. Pair contribution names and the designated demo lead remain open because that information was not provided.

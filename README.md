@@ -62,9 +62,10 @@ python3 -m scripts.analyze_chunking
 python3 -m scripts.check_retrieval
 python3 -m scripts.check_citations
 python3 -m scripts.check_refusal
+python3 -m scripts.generate_evidence
 ```
 
-These commands compare chunking configurations and validate retrieval, citation, and refusal behavior.
+These commands compare chunking configurations, validate retrieval, citation, and refusal behavior, and generate the final evidence pair.
 
 ## Run demo CLI
 

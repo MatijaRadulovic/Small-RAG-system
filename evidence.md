@@ -64,4 +64,50 @@ References:
 
 ## 5. Outcome 5: Final evidence pair
 
-Pending implementation and verification.
+- **Reproduce both cases:** `python3 -m scripts.generate_evidence`
+
+### Supported case command and output
+
+```text
+Question: How do citations connect claims to retrieved chunks?
+Retrieved chunks:
+- doc-5-chunk-0 | Citation Quality | score=0.481
+  Citations connect generated statements to retrieved chunks. Citation identifiers should match the ch
+- doc-2-chunk-6 | Chunking and Metadata | score=0.190
+  ng, citations, and source traceability.
+Answer:
+- Citations connect generated statements to retrieved chunks. Citation identifiers should match the ch [doc-5-chunk-0]
+- ng, citations, and source traceability. [doc-2-chunk-6]
+
+References:
+- [doc-5-chunk-0] Citation Quality
+- [doc-2-chunk-6] Chunking and Metadata
+Citations: doc-5-chunk-0, doc-2-chunk-6
+Refused: False
+```
+
+The two citations exactly match the two retrieved chunk IDs.
+
+### Unsupported case command and output
+
+```text
+Question: What color is retrieval on Mars?
+Retrieved chunks:
+- doc-4-chunk-0 | Retrieval Evaluation | score=0.203
+  Retrieval evaluation starts with questions whose relevant source documents are known. Hit rate check
+- doc-1-chunk-0 | RAG Fundamentals | score=0.174
+  Retrieval augmented generation combines retrieval with text generation. Before answering, the retrie
+Answer:
+I do not have enough grounded evidence in the provided corpus to answer that question.
+Citations: None
+Refused: True
+```
+
+The retrieved chunks share only `retrieval` with the question and provide no evidence about color or Mars, so refusal is correct.
+
+### Final verification
+
+```text
+./scripts/run_tests.sh
+15 passed in 0.05s
+```
