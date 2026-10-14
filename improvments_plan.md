@@ -101,16 +101,16 @@ The current answer decision checks the best result and may include weaker lower-
 
 ## Phase 6: Build a Proper Evaluation Dataset
 
-- [ ] Create a versioned JSONL or CSV evaluation dataset outside application source code.
-- [ ] Include question, expected document, expected source span, answerable flag, expected facts, and notes.
-- [ ] Cover exact terms, paraphrases, multi-document questions, weak overlaps, adversarial questions, and unsupported questions.
-- [ ] Separate tuning cases from held-out evaluation cases.
-- [ ] Implement `Recall@k`, MRR, and nDCG for retrieval.
-- [ ] Implement citation precision and citation recall.
-- [ ] Implement refusal precision and refusal recall.
-- [ ] Produce a compact before/after comparison rather than relying only on individual examples.
-- [ ] Define acceptable regression limits for every later phase.
-- [ ] Commit as `Add repeatable RAG evaluation suite`.
+- [x] Create a versioned JSONL or CSV evaluation dataset outside application source code.
+- [x] Include question, expected document, expected source span, answerable flag, expected facts, and notes.
+- [x] Cover exact terms, paraphrases, multi-document questions, weak overlaps, adversarial questions, and unsupported questions.
+- [x] Separate tuning cases from held-out evaluation cases.
+- [x] Implement `Recall@k`, MRR, and nDCG for retrieval.
+- [x] Implement citation precision and citation recall.
+- [x] Implement refusal precision and refusal recall.
+- [x] Produce a compact before/after comparison rather than relying only on individual examples.
+- [x] Define acceptable regression limits for every later phase.
+- [x] Commit as `Add repeatable RAG evaluation suite`.
 
 **Done when:** retrieval and grounding changes can be accepted or rejected using repeatable metrics.
 

@@ -66,9 +66,12 @@ python3 -m scripts.check_citations
 python3 -m scripts.check_refusal
 python3 -m scripts.generate_evidence
 python3 -m scripts.benchmark_retrieval
+python3 -m scripts.evaluate_rag --split heldout --details
+python3 -m scripts.compare_evaluation --split heldout --candidate-size 100 --candidate-overlap 20
 ```
 
 These commands compare chunking configurations, validate retrieval, citation, and refusal behavior, and generate the final evidence pair.
+The versioned evaluation questions are in `data/rag_eval_v1.jsonl`; split definitions, metric meanings, baseline, and regression limits are in `docs/evaluation_policy.md`.
 
 ## Run demo CLI
 

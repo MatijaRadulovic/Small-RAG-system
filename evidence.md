@@ -95,5 +95,31 @@ The system refuses because the retrieved text does not answer the color or Mars 
 
 ```text
 ./scripts/run_tests.sh
-46 passed in 0.30s
+51 passed in 0.07s
 ```
+
+## RAG Improvement Phase 6: Held-Out Evaluation Baseline
+
+The versioned evaluation dataset is `data/rag_eval_v1.jsonl` (10 tuning and 10 held-out cases). It labels expected source documents and exact evidence phrases, answerability, expected facts, and question type. The acceptance policy and metric definitions are in `docs/evaluation_policy.md`.
+
+Command: `python3 -m scripts.evaluate_rag --split heldout`
+
+```text
+RAG evaluation: heldout; 10 cases; chunk=220/0; k=3
+Retrieval — Recall@3: 1.000; MRR: 0.929; nDCG@3: 0.947; source-span Recall@3: 0.786; span MRR: 0.714
+Citations — precision: 1.000; source-span recall: 0.250 (2 citations; 8 expected spans)
+Refusals — precision: 0.375; recall: 1.000
+```
+
+Command: `python3 -m scripts.compare_evaluation --split heldout`
+
+```text
+                       baseline  candidate  delta
+Recall@3                  1.000      0.929  -0.071
+MRR                       0.929      0.929  +0.000
+nDCG@3                    0.947      0.892  -0.055
+source-span Recall@3      0.786      0.429  -0.357
+citation precision        1.000      0.500  -0.500
+```
+
+The default comparison is `220/0` against `100/20`. Although document Recall@3 remains high, `100/20` fails the source-span and citation regression floors. `python3 -m scripts.analyze_chunking` now uses only the tuning split and selects `220/0` at 100% hit@1, 100% hit@3, and MRR `1.000`; these tuning results are not substituted for the held-out report.

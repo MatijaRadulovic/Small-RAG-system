@@ -198,3 +198,16 @@ Useful questions to record for each experiment are:
 5. Did a weakly related question correctly lead to refusal?
 
 Change one setting at a time and compare the same queries. That makes it possible to explain which change caused the observed difference.
+
+## 11. Use the labeled evaluation set
+
+`data/rag_eval_v1.jsonl` stores fixed questions and labels separately from the application code. Ten questions form the tuning split; another ten form the held-out split. Labels include relevant documents, exact source passages, answerability, expected facts, and the reason a question is included. The held-out cases cover paraphrases, a two-source question, weak lexical overlap, unsupported requests, and an adversarial request.
+
+Run the chunk-size grid on tuning cases, then evaluate the current implementation on held-out cases:
+
+```bash
+python3 -m scripts.analyze_chunking
+python3 -m scripts.evaluate_rag --split heldout --details
+```
+
+Document Recall@k tells whether a relevant source appears; source-span Recall@k tells whether the exact labeled passage appears. MRR rewards earlier relevant results, while nDCG also uses document relevance grades. Citation precision and recall check whether cited chunks contain expected source spans. Refusal precision and recall compare actual refusal decisions with labeled answerability. Current thresholds and limitations are in `docs/evaluation_policy.md`. The set is small and English-only, so its measurements are useful regression signals rather than broad quality guarantees.

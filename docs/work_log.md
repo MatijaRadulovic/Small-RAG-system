@@ -340,3 +340,25 @@ Retrieval now collapses exact duplicate text and near-duplicate token sets from 
 Why: overlapping or repeated passages can occupy top-k slots without adding evidence. The source cap gives multi-document questions a chance to retrieve other sources while keeping a small allowance for separate facts in a long document. This is a lexical duplicate-control method; semantic MMR is deferred until an embedding representation exists.
 
 Verification: added tests for exact duplicates, near duplicates, source limits, distinct same-source passages, and invalid settings. `./scripts/run_tests.sh` reports 46 passed. `python3 -m scripts.analyze_chunking` still measures `220/0` at hit@1 93.3%, hit@3 100%, MRR `0.967`; the tested `100/20` configuration remains hit@3 100%, so the source/duplicate filter did not lower measured Recall@3. `python3 -m scripts.check_retrieval`, `python3 -m scripts.check_citations`, `python3 -m scripts.generate_evidence`, and `python3 -m scripts.check_refusal` pass. The CLI accepts the source-limit option; an unsupported query correctly still refuses. The checker displays score plus diversity and redundancy.
+
+## Phase 6: Labeled Retrieval and Grounding Evaluation
+
+Added the versioned dataset `data/rag_eval_v1.jsonl` with ten tuning and ten held-out cases. Labels include relevance-graded documents, concise exact source phrases, answerability, expected facts, categories, and notes. Refactored the chunking grid to use only tuning cases and added `scripts.evaluate_rag` for document Recall@k, MRR, nDCG, exact source-span recall/MRR, citation precision/recall, and refusal precision/recall. Added `scripts.compare_evaluation` for a same-split before/after table.
+
+Why: one hand-picked query cannot reveal whether changes help paraphrases, multi-document questions, weak overlap, or unsupported requests. Document-level recall alone also hid cases where the right source ranked but the evidence passage did not. The held-out source-span and citation metrics check those finer outcomes. Regression floors and metric definitions are recorded in `docs/evaluation_policy.md`.
+
+Commands and results:
+
+```text
+./scripts/run_tests.sh
+51 passed in 0.07s
+python3 -m scripts.analyze_chunking
+10 tuning queries; selected 220/0; hit@1=100%, hit@3=100%, MRR=1.000 (14 chunks)
+python3 -m scripts.evaluate_rag --split heldout
+Recall@3=1.000; MRR=0.929; nDCG@3=0.947; span Recall@3=0.786; span MRR=0.714
+Citation precision=1.000; citation span recall=0.250; refusal precision=0.375; refusal recall=1.000
+python3 -m scripts.compare_evaluation --split heldout
+220/0 vs 100/20: doc Recall@3 1.000 vs 0.929; span Recall@3 0.786 vs 0.429; citation precision 1.000 vs 0.500
+```
+
+The comparison shows why passage-level checks matter: `100/20` remains close on document rankings but fails the held-out source-span and citation floors. `evidence.md`, the README, and the retrieval guide now point to the dataset and reproducible evaluation commands. This small English corpus is a regression set, not a statistical quality guarantee; multilingual questions await a Serbian evaluation corpus.
