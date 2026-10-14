@@ -28,6 +28,7 @@ This evidence reflects the current sentence-aware chunker, reusable BM25 index, 
 | 3 | 3 | `doc-1@0:201` | 0.01587 |
 
 - **Why ranking is correct:** The first two passages are from `Chunking and Metadata` and contain the requested chunk size, overlap, and retrieval concepts. The third passage shares only `retrieval` and ranks lower. The checker confirms the requested result count and descending fused rank scores; component BM25 scores and matched terms appear in its output.
+- **Diversity check:** The first two are distinct passages from the same source, so both remain eligible; reported lexical diversity scores are `1.00` and `0.93`. A second result from a source is permitted while duplicates and results beyond the default two-per-source limit are filtered.
 - **Reproduce:** `python3 -m scripts.check_retrieval`
 
 ## 3. Outcome 3: Citation quality
@@ -94,5 +95,5 @@ The system refuses because the retrieved text does not answer the color or Mars 
 
 ```text
 ./scripts/run_tests.sh
-42 passed in 0.20s
+46 passed in 0.30s
 ```

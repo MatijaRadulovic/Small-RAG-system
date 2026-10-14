@@ -87,15 +87,15 @@ The current answer decision checks the best result and may include weaker lower-
 
 ## Phase 5: Duplicate Control and Result Diversity
 
-- [ ] Detect exact duplicate chunk text.
-- [ ] Measure near-duplicate overlap between adjacent chunks from the same source.
-- [ ] Collapse or penalize results that repeat substantially the same evidence.
-- [ ] Add a configurable maximum number of chunks per source document.
-- [ ] Preserve two chunks from one document when they contain genuinely different supporting facts.
-- [ ] Implement a lexical diversity method first; add MMR after embeddings are available.
-- [ ] Report both relevance and diversity contributions in debug output.
-- [ ] Evaluate whether diversity improves coverage without lowering `Recall@k`.
-- [ ] Commit as `Diversify top-k retrieval results`.
+- [x] Detect exact duplicate chunk text.
+- [x] Measure near-duplicate overlap between adjacent chunks from the same source.
+- [x] Collapse or penalize results that repeat substantially the same evidence.
+- [x] Add a configurable maximum number of chunks per source document.
+- [x] Preserve two chunks from one document when they contain genuinely different supporting facts.
+- [x] Implement a lexical diversity method first; add MMR after embeddings are available.
+- [x] Report both relevance and diversity contributions in debug output.
+- [x] Evaluate whether diversity improves coverage without lowering `Recall@k`.
+- [x] Commit as `Diversify top-k retrieval results`.
 
 **Done when:** top-k results provide distinct useful evidence instead of repeated overlap.
 

@@ -16,6 +16,8 @@ def print_results(k: int, results: list[RetrievalResult]) -> None:
             f"  {rank}. {result.chunk.chunk_id} | {result.chunk.title} "
             f"| fused={result.score:.5f} | BM25={result.content_score:.3f} "
             f"| title BM25={result.title_score:.3f} "
+            f"| diversity={result.diversity_score:.2f} "
+            f"(redundancy={result.redundancy:.2f}) "
             f"| terms={','.join(result.matched_terms)} | {preview}..."
         )
 

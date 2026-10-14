@@ -23,6 +23,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--top-k", type=int, default=2, help="Number of retrieved chunks")
     parser.add_argument(
+        "--max-per-source",
+        type=int,
+        default=2,
+        help="Maximum retrieved chunks from one source document (default: 2)",
+    )
+    parser.add_argument(
         "--language",
         choices=("en", "sr", "mixed"),
         default="en",
@@ -46,6 +52,7 @@ def main() -> None:
         args.question,
         index,
         top_k=args.top_k,
+        max_per_source=args.max_per_source,
     )
 
     print("Question:")

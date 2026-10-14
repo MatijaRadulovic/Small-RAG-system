@@ -204,6 +204,8 @@ class RetrievalResult:
     content_score: float = 0.0
     title_score: float = 0.0
     matched_terms: tuple[str, ...] = ()
+    redundancy: float = 0.0
+    diversity_score: float = 1.0
 
 
 class _BM25Field:
@@ -341,6 +343,12 @@ def _rank_scores(scores: list[float], chunks: Sequence[Chunk]) -> dict[int, int]
     return {index: rank for rank, index in enumerate(ranked, start=1)}
 
 
+def _token_overlap(left: set[str], right: set[str]) -> float:
+    """Return Jaccard overlap, a simple lexical near-duplicate signal."""
+    union = left | right
+    return len(left & right) / len(union) if union else 0.0
+
+
 def retrieve_top_k(
     query: str,
     chunks: Sequence[Chunk] | BM25Index,
@@ -348,6 +356,8 @@ def retrieve_top_k(
     min_score: float = 0.0,
     language: str | None = None,
     title_weight: float = TITLE_RRF_WEIGHT,
+    max_per_source: int | None = 2,
+    duplicate_threshold: float = 0.85,
 ) -> list[RetrievalResult]:
     if k <= 0:
         raise ValueError("k must be > 0")
@@ -355,6 +365,10 @@ def retrieve_top_k(
         raise ValueError("min_score must be >= 0")
     if not 0 <= title_weight <= 1:
         raise ValueError("title_weight must be between 0 and 1")
+    if max_per_source is not None and max_per_source <= 0:
+        raise ValueError("max_per_source must be > 0 or None")
+    if not 0 <= duplicate_threshold <= 1:
+        raise ValueError("duplicate_threshold must be between 0 and 1")
 
     if isinstance(chunks, BM25Index):
         index = chunks
@@ -387,6 +401,48 @@ def retrieve_top_k(
                 matched_terms=tuple(sorted(query_terms & chunk_terms)),
             )
         )
-    filtered = [item for item in scored if item.score >= min_score]
-    filtered.sort(key=lambda item: (-item.score, item.chunk.chunk_id))
-    return filtered[:k]
+    candidates = [item for item in scored if item.score >= min_score]
+    candidates.sort(key=lambda item: (-item.score, item.chunk.chunk_id))
+
+    # Greedily keep ranked passages while suppressing exact duplicates, very
+    # similar passages from the same source, and excessive source repetition.
+    selected: list[RetrievalResult] = []
+    source_counts: Counter[str] = Counter()
+    selected_tokens: list[tuple[RetrievalResult, set[str]]] = []
+    for item in candidates:
+        source = item.chunk.source_id or item.chunk.doc_id
+        if max_per_source is not None and source_counts[source] >= max_per_source:
+            continue
+
+        terms = set(tokenize(item.chunk.text, language=index.language))
+        redundancy = 0.0
+        duplicate = False
+        normalized_text = " ".join(item.chunk.text.casefold().split())
+        for existing, existing_terms in selected_tokens:
+            existing_text = " ".join(existing.chunk.text.casefold().split())
+            overlap = _token_overlap(terms, existing_terms)
+            redundancy = max(redundancy, overlap)
+            same_source = (existing.chunk.source_id or existing.chunk.doc_id) == source
+            if normalized_text == existing_text or (
+                same_source and overlap >= duplicate_threshold
+            ):
+                duplicate = True
+                break
+        if duplicate:
+            continue
+
+        selected_item = RetrievalResult(
+            chunk=item.chunk,
+            score=item.score,
+            content_score=item.content_score,
+            title_score=item.title_score,
+            matched_terms=item.matched_terms,
+            redundancy=redundancy,
+            diversity_score=1.0 - redundancy,
+        )
+        selected.append(selected_item)
+        selected_tokens.append((selected_item, terms))
+        source_counts[source] += 1
+        if len(selected) == k:
+            break
+    return selected

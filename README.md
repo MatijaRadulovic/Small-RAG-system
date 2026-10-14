@@ -8,6 +8,7 @@ This starter app helps students practice Week 6 concepts from the RAG lecture:
 - answer generation with citations
 - refusal behavior when evidence is missing
 - per-passage evidence checks that filter weak results before citation
+- duplicate filtering and a configurable per-source result limit
 
 ## Learning goals
 
@@ -73,6 +74,7 @@ These commands compare chunking configurations, validate retrieval, citation, an
 
 ```bash
 python3 -m src.cli --question "What is retrieval augmented generation?"
+python3 -m src.cli --top-k 4 --max-per-source 2 --question "How do citations work?"
 python3 -m src.cli --question "Who won the world cup in 1958?"
 python3 -m src.cli --corpus-profile training-rag --question "Why are citations important in RAG?"
 python3 -m src.cli --language sr --question "Koji dokument sadrži relevantne podatke?"

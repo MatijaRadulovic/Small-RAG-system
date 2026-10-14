@@ -128,10 +128,14 @@ After scoring, retrieval:
 
 1. removes results below `min_score`;
 2. sorts the remaining chunks from highest to lowest score;
-3. uses chunk ID to make tied results deterministic;
-4. returns at most `k` chunks.
+3. skips exact duplicate passages and highly overlapping passages from the same source;
+4. limits results to two chunks per source by default;
+5. uses chunk ID to make tied results deterministic;
+6. returns at most `k` chunks.
 
-`top_k=2` means “return the best two qualifying chunks.” Increasing `k` gives the answer stage more context, but it can also add irrelevant passages. More context is not automatically better.
+Near-duplicate detection uses Jaccard overlap between token sets; its default threshold is `0.85`. The selected result reports `redundancy` and `diversity_score` (one minus the highest overlap with an already selected passage). Its BM25/RRF `score` remains the relevance signal. Set `max_per_source=None` in Python to disable the source cap, or change it in the CLI with `--max-per-source 3`.
+
+`top_k=2` means “return up to two qualifying chunks after duplicate and source filters.” Increasing `k` gives the answer stage more context, but it can also add irrelevant passages. More context is not automatically better. The source cap keeps multi-chunk evidence possible when one document contains distinct facts.
 
 ## 7. The grounding check
 

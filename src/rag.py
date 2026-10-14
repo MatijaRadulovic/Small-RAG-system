@@ -75,6 +75,7 @@ def build_grounded_answer(
     chunks: list[Chunk] | BM25Index,
     top_k: int = 2,
     language: str | None = None,
+    max_per_source: int | None = 2,
 ) -> RagAnswer:
     effective_language = language or (chunks.language if isinstance(chunks, BM25Index) else "en")
     results = retrieve_top_k(
@@ -82,6 +83,7 @@ def build_grounded_answer(
         chunks,
         k=top_k,
         language=language,
+        max_per_source=max_per_source,
     )
     if not results:
         return RagAnswer(answer=REFUSAL_MESSAGE, citations=[], refused=True)

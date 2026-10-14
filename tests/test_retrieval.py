@@ -202,3 +202,63 @@ def test_rank_fusion_keeps_component_scores_separate() -> None:
     assert results[0].content_score > 0
     assert results[0].title_score > 0
     assert results[0].score < 0.03
+
+
+def test_retrieval_collapses_exact_duplicate_text() -> None:
+    chunks = [
+        Chunk(chunk_id="a1", doc_id="a", title="A", text="retrieval citation evidence"),
+        Chunk(chunk_id="a2", doc_id="a", title="A", text="retrieval citation evidence"),
+        Chunk(chunk_id="b1", doc_id="b", title="B", text="retrieval citation source"),
+    ]
+
+    results = retrieve_top_k("retrieval citation evidence", chunks, k=3)
+
+    assert len(results) == 2
+    assert len({item.chunk.text for item in results}) == 2
+
+
+def test_retrieval_skips_near_duplicate_adjacent_chunks() -> None:
+    chunks = [
+        Chunk(
+            chunk_id="a1",
+            doc_id="a",
+            title="A",
+            text="retrieval citation evidence source traceability metadata",
+        ),
+        Chunk(
+            chunk_id="a2",
+            doc_id="a",
+            title="A",
+            text="retrieval citation evidence source traceability metadata notes",
+        ),
+        Chunk(chunk_id="b1", doc_id="b", title="B", text="retrieval citation evidence quality"),
+    ]
+
+    results = retrieve_top_k("retrieval citation evidence", chunks, k=3)
+
+    assert "a1" in [item.chunk.chunk_id for item in results]
+    assert "a2" not in [item.chunk.chunk_id for item in results]
+    assert all(item.diversity_score == 1 - item.redundancy for item in results)
+
+
+def test_retrieval_limits_source_repetition_but_keeps_distinct_facts() -> None:
+    chunks = [
+        Chunk(chunk_id="a1", doc_id="a", title="A", text="retrieval ranks relevant passages"),
+        Chunk(chunk_id="a2", doc_id="a", title="A", text="retrieval cites source passages"),
+        Chunk(chunk_id="a3", doc_id="a", title="A", text="retrieval filters weak passages"),
+    ]
+
+    results = retrieve_top_k("retrieval passages", chunks, k=3, max_per_source=2)
+
+    assert len(results) == 2
+    assert [item.chunk.chunk_id for item in results] == ["a1", "a2"]
+
+
+def test_retrieval_diversity_options_are_validated() -> None:
+    import pytest
+
+    chunk = Chunk(chunk_id="a", doc_id="a", title="A", text="retrieval evidence")
+    with pytest.raises(ValueError):
+        retrieve_top_k("retrieval", [chunk], max_per_source=0)
+    with pytest.raises(ValueError):
+        retrieve_top_k("retrieval", [chunk], duplicate_threshold=1.1)
