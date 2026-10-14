@@ -296,3 +296,17 @@ The earlier ASCII-only expression dropped Serbian letters and could not support 
 ### Decision and verification
 
 Unicode and Serbian retrieval tests pass. Stemming/lemmatization was deferred: the sample corpus is English, so it does not provide a labeled Serbian set to measure morphological matching without risking false conflation. The 15-query English chunking evaluation remains at 100% hit@1 and MRR `1.000`; unsupported evidence still refuses. `./scripts/run_tests.sh` reports 32 passed. The Serbian retrieval unit case uses a constructed Cyrillic chunk because the shipped sample corpus has no Serbian content.
+
+## Phase 2: Reusable BM25 Index and Field Ranking
+
+### What changed
+
+Added `BM25Index`, which tokenizes content and title fields and stores their document frequencies and average lengths once. The CLI and multi-query scripts now reuse one index. Content and title are scored separately and combined by reciprocal rank fusion (RRF), not by adding scores from different scales. `RetrievalResult` now exposes content score, title score, and matched terms; retrieval validates BM25 parameters, `k`, score filters, and title weight. Added a benchmark for build latency, repeated-query latency, vocabulary, indexed terms, and peak traced allocation.
+
+### Why
+
+The previous implementation rebuilt corpus statistics for every query and directly added BM25 to cosine title similarity. Those scores do not share a meaningful scale. RRF combines their rankings, while a small title weight (`0.01`) lets titles help with close comparisons without overpowering a much stronger passage match.
+
+### Decision and verification
+
+The updated 42-configuration evaluation recommends `220/0` for the current corpus: 93.3% hit@1, 100% hit@3, MRR `0.967`, and 14 chunks. The former `100/20` setting has 86.7% hit@1 and MRR `0.922` with 36 chunks under RRF. Benchmark readings are machine-dependent; one run recorded a 12.433 ms index build, 0.289 ms mean repeated query, and 40.0 KiB peak traced allocation. `./scripts/run_tests.sh` reports 35 passed. Top-k, citation, refusal, and final evidence scripts pass with current chunk IDs and RRF outputs.

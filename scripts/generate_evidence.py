@@ -3,7 +3,7 @@
 from src.chunking import Chunk, build_chunks
 from src.corpus import load_default_corpus
 from src.rag import RagAnswer, build_grounded_answer
-from src.retrieval import RetrievalResult, retrieve_top_k
+from src.retrieval import BM25Index, RetrievalResult, retrieve_top_k
 
 
 SUPPORTED_QUERY = "How do citations connect claims to retrieved chunks?"
@@ -31,15 +31,16 @@ def print_case(
 
 def main() -> None:
     chunks = build_chunks(load_default_corpus())
+    index = BM25Index(chunks)
 
-    supported_retrieval = retrieve_top_k(SUPPORTED_QUERY, chunks, k=2)
-    supported_result = build_grounded_answer(SUPPORTED_QUERY, chunks, top_k=2)
+    supported_retrieval = retrieve_top_k(SUPPORTED_QUERY, index, k=2)
+    supported_result = build_grounded_answer(SUPPORTED_QUERY, index, top_k=2)
     supported_ids = [item.chunk.chunk_id for item in supported_retrieval]
     assert supported_result.refused is False
     assert supported_result.citations == supported_ids
 
-    unsupported_retrieval = retrieve_top_k(UNSUPPORTED_QUERY, chunks, k=2)
-    unsupported_result = build_grounded_answer(UNSUPPORTED_QUERY, chunks, top_k=2)
+    unsupported_retrieval = retrieve_top_k(UNSUPPORTED_QUERY, index, k=2)
+    unsupported_result = build_grounded_answer(UNSUPPORTED_QUERY, index, top_k=2)
     assert unsupported_result.refused is True
     assert unsupported_result.citations == []
 

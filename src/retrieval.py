@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from math import log, sqrt
 import re
 import unicodedata
+from typing import Sequence
 
 from .chunking import Chunk
 
@@ -10,7 +11,8 @@ from .chunking import Chunk
 TOKEN_RE = re.compile(r"[^\W_]+(?:[-./][^\W_]+)*", re.UNICODE)
 BM25_K1 = 1.5
 BM25_B = 0.75
-TITLE_BOOST = 0.25
+TITLE_RRF_WEIGHT = 0.01
+RRF_CONSTANT = 60
 ENGLISH_STOP_WORDS = {
     "a",
     "an",
@@ -199,6 +201,113 @@ def tokenize(text: str, language: str = "en") -> list[str]:
 class RetrievalResult:
     chunk: Chunk
     score: float
+    content_score: float = 0.0
+    title_score: float = 0.0
+    matched_terms: tuple[str, ...] = ()
+
+
+class _BM25Field:
+    """BM25 statistics and scoring for one text field across all chunks."""
+
+    def __init__(
+        self,
+        values: Sequence[str],
+        *,
+        language: str,
+        k1: float,
+        b: float,
+    ) -> None:
+        self.tokens = [tokenize(value, language=language) for value in values]
+        self.term_frequencies = [Counter(tokens) for tokens in self.tokens]
+        self.document_frequency: Counter[str] = Counter()
+        for tokens in self.tokens:
+            self.document_frequency.update(set(tokens))
+        self.document_count = len(self.tokens)
+        self.average_length = (
+            sum(map(len, self.tokens)) / self.document_count
+            if self.document_count
+            else 0.0
+        )
+        self.k1 = k1
+        self.b = b
+
+    def score(self, query_terms: set[str]) -> list[float]:
+        if not query_terms or not self.document_count or self.average_length == 0:
+            return [0.0] * self.document_count
+
+        scores: list[float] = []
+        for tokens, term_frequency in zip(self.tokens, self.term_frequencies):
+            length_normalization = self.k1 * (
+                1 - self.b + self.b * len(tokens) / self.average_length
+            )
+            score = 0.0
+            for term in query_terms:
+                frequency = term_frequency[term]
+                if frequency == 0:
+                    continue
+                frequency_in_chunks = self.document_frequency[term]
+                inverse_document_frequency = log(
+                    1
+                    + (self.document_count - frequency_in_chunks + 0.5)
+                    / (frequency_in_chunks + 0.5)
+                )
+                score += inverse_document_frequency * (
+                    frequency * (self.k1 + 1) / (frequency + length_normalization)
+                )
+            scores.append(score)
+        return scores
+
+
+class BM25Index:
+    """Reusable BM25 content/title statistics for repeated queries."""
+
+    def __init__(
+        self,
+        chunks: Sequence[Chunk],
+        *,
+        language: str = "en",
+        k1: float = BM25_K1,
+        b: float = BM25_B,
+    ) -> None:
+        if k1 <= 0:
+            raise ValueError("k1 must be > 0")
+        if not 0 <= b <= 1:
+            raise ValueError("b must be between 0 and 1")
+        # Validate the language even when the chunk list is empty.
+        tokenize("", language=language)
+
+        self.chunks = tuple(chunks)
+        self.language = language
+        self.k1 = k1
+        self.b = b
+        self._content = _BM25Field(
+            [chunk.text for chunk in self.chunks],
+            language=language,
+            k1=k1,
+            b=b,
+        )
+        self._titles = _BM25Field(
+            [chunk.title for chunk in self.chunks],
+            language=language,
+            k1=k1,
+            b=b,
+        )
+
+    @property
+    def vocabulary_size(self) -> int:
+        return len(self._content.document_frequency)
+
+    @property
+    def indexed_token_count(self) -> int:
+        return sum(map(len, self._content.tokens))
+
+    @property
+    def average_chunk_length(self) -> float:
+        return self._content.average_length
+
+    def score(self, query: str) -> tuple[list[float], list[float]]:
+        query_terms = set(tokenize(query, language=self.language))
+        return self._content.score(query_terms), self._titles.score(query_terms)
 
 
 def lexical_score(query: str, chunk_text: str, language: str = "en") -> float:
@@ -219,62 +328,65 @@ def bm25_scores(
     b: float = BM25_B,
     language: str = "en",
 ) -> list[float]:
-    """Score every chunk with BM25 using the supplied chunks as the index."""
-    query_terms = set(tokenize(query, language=language))
-    tokenized_chunks = [tokenize(chunk.text, language=language) for chunk in chunks]
-    if not query_terms or not tokenized_chunks:
-        return [0.0] * len(chunks)
+    """Compatibility helper for one-off content-only BM25 scoring."""
+    index = BM25Index(chunks, language=language, k1=k1, b=b)
+    return index.score(query)[0]
 
-    document_frequency: Counter[str] = Counter()
-    for tokens in tokenized_chunks:
-        document_frequency.update(set(tokens))
 
-    chunk_count = len(tokenized_chunks)
-    average_length = sum(len(tokens) for tokens in tokenized_chunks) / chunk_count
-    if average_length == 0:
-        return [0.0] * len(chunks)
-
-    scores: list[float] = []
-    for tokens in tokenized_chunks:
-        term_frequency = Counter(tokens)
-        chunk_length = len(tokens)
-        score = 0.0
-        for term in query_terms:
-            frequency = term_frequency[term]
-            if frequency == 0:
-                continue
-
-            frequency_in_chunks = document_frequency[term]
-            inverse_document_frequency = log(
-                1 + (chunk_count - frequency_in_chunks + 0.5) / (frequency_in_chunks + 0.5)
-            )
-            length_normalization = k1 * (
-                1 - b + b * chunk_length / average_length
-            )
-            score += inverse_document_frequency * (
-                frequency * (k1 + 1) / (frequency + length_normalization)
-            )
-        scores.append(score)
-
-    return scores
+def _rank_scores(scores: list[float], chunks: Sequence[Chunk]) -> dict[int, int]:
+    ranked = sorted(
+        (index for index, score in enumerate(scores) if score > 0),
+        key=lambda index: (-scores[index], chunks[index].chunk_id),
+    )
+    return {index: rank for rank, index in enumerate(ranked, start=1)}
 
 
 def retrieve_top_k(
     query: str,
-    chunks: list[Chunk],
+    chunks: Sequence[Chunk] | BM25Index,
     k: int = 3,
-    min_score: float = 0.01,
-    language: str = "en",
+    min_score: float = 0.0,
+    language: str | None = None,
+    title_weight: float = TITLE_RRF_WEIGHT,
 ) -> list[RetrievalResult]:
     if k <= 0:
         raise ValueError("k must be > 0")
+    if min_score < 0:
+        raise ValueError("min_score must be >= 0")
+    if not 0 <= title_weight <= 1:
+        raise ValueError("title_weight must be between 0 and 1")
 
-    scored = []
-    content_scores = bm25_scores(query, chunks, language=language)
-    for chunk, content_score in zip(chunks, content_scores):
-        title_score = lexical_score(query, chunk.title, language=language)
-        score = content_score + (TITLE_BOOST * title_score)
-        scored.append(RetrievalResult(chunk=chunk, score=score))
+    if isinstance(chunks, BM25Index):
+        index = chunks
+        if language is not None and language != index.language:
+            raise ValueError("language must match the BM25Index language")
+    else:
+        index = BM25Index(chunks, language=language or "en")
+
+    content_scores, title_scores = index.score(query)
+    content_ranks = _rank_scores(content_scores, index.chunks)
+    title_ranks = _rank_scores(title_scores, index.chunks)
+    query_terms = set(tokenize(query, language=index.language))
+
+    scored: list[RetrievalResult] = []
+    for position, chunk in enumerate(index.chunks):
+        content_rank = content_ranks.get(position)
+        title_rank = title_ranks.get(position)
+        if content_rank is None and title_rank is None:
+            continue
+        score = (1 / (RRF_CONSTANT + content_rank)) if content_rank else 0.0
+        if title_rank:
+            score += title_weight / (RRF_CONSTANT + title_rank)
+        chunk_terms = set(tokenize(chunk.text, language=index.language))
+        scored.append(
+            RetrievalResult(
+                chunk=chunk,
+                score=score,
+                content_score=content_scores[position],
+                title_score=title_scores[position],
+                matched_terms=tuple(sorted(query_terms & chunk_terms)),
+            )
+        )
     filtered = [item for item in scored if item.score >= min_score]
     filtered.sort(key=lambda item: (-item.score, item.chunk.chunk_id))
     return filtered[:k]

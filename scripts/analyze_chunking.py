@@ -5,7 +5,7 @@ from itertools import product
 
 from src.chunking import build_chunks
 from src.corpus import load_default_corpus
-from src.retrieval import retrieve_top_k
+from src.retrieval import BM25Index, retrieve_top_k
 
 
 @dataclass(frozen=True)
@@ -58,12 +58,13 @@ def reciprocal_rank(expected_doc_id: str, doc_ids: list[str]) -> float:
 
 def evaluate(chunk_size: int, overlap: int, documents: list) -> Summary:
     chunks = build_chunks(documents, chunk_size=chunk_size, overlap=overlap)
+    index = BM25Index(chunks)
     ranks: list[float] = []
     hit_at_1: list[bool] = []
     hit_at_3: list[bool] = []
 
     for query in QUERIES:
-        results = retrieve_top_k(query.question, chunks, k=TOP_K)
+        results = retrieve_top_k(query.question, index, k=TOP_K)
         doc_ids = [result.chunk.doc_id for result in results]
         rank = reciprocal_rank(query.expected_doc_id, doc_ids)
         ranks.append(rank)

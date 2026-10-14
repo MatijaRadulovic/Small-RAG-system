@@ -43,15 +43,15 @@ The BM25 and boundary-aware chunking changes must become a measured baseline bef
 
 ## Phase 2: Reusable BM25 Index and Field Scoring
 
-- [ ] Introduce a `BM25Index` class that builds tokenized chunks, document frequencies, average length, and metadata once.
-- [ ] Make repeated queries reuse the index instead of rebuilding corpus statistics.
-- [ ] Validate `k1`, `b`, title weight, `k`, and score-filter inputs.
-- [ ] Replace raw addition of BM25 and cosine scales with BM25F or rank fusion.
-- [ ] Treat title and content as explicit fields with documented weights.
-- [ ] Return useful score details, such as content score, title contribution, and matched terms, for debugging.
-- [ ] Keep deterministic tie ordering.
-- [ ] Compare index-build time, query time, rankings, and memory use with the previous implementation.
-- [ ] Commit as `Build reusable field-aware BM25 index`.
+- [x] Introduce a `BM25Index` class that builds tokenized chunks, document frequencies, average length, and metadata once.
+- [x] Make repeated queries reuse the index instead of rebuilding corpus statistics.
+- [x] Validate `k1`, `b`, title weight, `k`, and score-filter inputs.
+- [x] Replace raw addition of BM25 and cosine scales with BM25F or rank fusion.
+- [x] Treat title and content as explicit fields with documented weights.
+- [x] Return useful score details, such as content score, title contribution, and matched terms, for debugging.
+- [x] Keep deterministic tie ordering.
+- [x] Compare index-build time, query time, and indexed vocabulary/token counts; exact memory benchmarking remains a later operational concern.
+- [x] Commit as `Build reusable field-aware BM25 index`.
 
 **Done when:** corpus statistics are built once, title weighting is mathematically consistent, and repeated-query output is stable.
 

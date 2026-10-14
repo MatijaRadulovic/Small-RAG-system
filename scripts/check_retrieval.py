@@ -2,7 +2,7 @@
 
 from src.chunking import build_chunks
 from src.corpus import load_default_corpus
-from src.retrieval import RetrievalResult, retrieve_top_k
+from src.retrieval import BM25Index, RetrievalResult, retrieve_top_k
 
 
 QUERY = "How do chunk size and overlap improve retrieval quality?"
@@ -14,18 +14,21 @@ def print_results(k: int, results: list[RetrievalResult]) -> None:
         preview = result.chunk.text.replace("\n", " ")[:90]
         print(
             f"  {rank}. {result.chunk.chunk_id} | {result.chunk.title} "
-            f"| score={result.score:.3f} | {preview}..."
+            f"| fused={result.score:.5f} | BM25={result.content_score:.3f} "
+            f"| title BM25={result.title_score:.3f} "
+            f"| terms={','.join(result.matched_terms)} | {preview}..."
         )
 
 
 def main() -> None:
     chunks = build_chunks(load_default_corpus())
+    index = BM25Index(chunks)
     print("OUTCOME 2: TOP-K RETRIEVAL CHECK")
     print(f"Query: {QUERY}")
     print(f"Chunks searched: {len(chunks)}\n")
 
     for k in (2, 3):
-        results = retrieve_top_k(QUERY, chunks, k=k)
+        results = retrieve_top_k(QUERY, index, k=k)
         assert len(results) == k
         assert results == sorted(results, key=lambda item: item.score, reverse=True)
         assert results[0].chunk.doc_id == "doc-2"

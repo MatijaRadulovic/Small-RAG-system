@@ -63,6 +63,7 @@ python3 -m scripts.check_retrieval
 python3 -m scripts.check_citations
 python3 -m scripts.check_refusal
 python3 -m scripts.generate_evidence
+python3 -m scripts.benchmark_retrieval
 ```
 
 These commands compare chunking configurations, validate retrieval, citation, and refusal behavior, and generate the final evidence pair.
@@ -117,4 +118,4 @@ Use `docs/homework-checklist.md` as submission guidance.
 
 ## Learn how retrieval works
 
-See [`docs/rag_retrieval_guide.md`](docs/rag_retrieval_guide.md) for a beginner-friendly explanation of boundary-aware chunking, BM25 scoring, title boosting, top-k retrieval, and grounding checks.
+See [`docs/rag_retrieval_guide.md`](docs/rag_retrieval_guide.md) for a beginner-friendly explanation of boundary-aware chunking, BM25 scoring, content/title rank fusion, top-k retrieval, and grounding checks.

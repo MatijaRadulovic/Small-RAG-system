@@ -3,6 +3,7 @@ import argparse
 from .chunking import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, build_chunks
 from .corpus import list_corpus_profiles, load_corpus
 from .rag import build_grounded_answer
+from .retrieval import BM25Index
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,11 +41,11 @@ def main() -> None:
     args = parse_args()
     corpus = load_corpus(args.corpus_profile)
     chunks = build_chunks(corpus, chunk_size=args.chunk_size, overlap=args.overlap)
+    index = BM25Index(chunks, language=args.language)
     result = build_grounded_answer(
         args.question,
-        chunks,
+        index,
         top_k=args.top_k,
-        language=args.language,
     )
 
     print("Question:")

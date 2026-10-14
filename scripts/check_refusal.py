@@ -3,7 +3,7 @@
 from src.chunking import build_chunks
 from src.corpus import load_default_corpus
 from src.rag import REFUSAL_MESSAGE, build_grounded_answer
-from src.retrieval import retrieve_top_k
+from src.retrieval import BM25Index, retrieve_top_k
 
 
 QUERY = "What color is retrieval on Mars?"
@@ -11,8 +11,9 @@ QUERY = "What color is retrieval on Mars?"
 
 def main() -> None:
     chunks = build_chunks(load_default_corpus())
-    retrieved = retrieve_top_k(QUERY, chunks, k=2)
-    result = build_grounded_answer(QUERY, chunks, top_k=2)
+    index = BM25Index(chunks)
+    retrieved = retrieve_top_k(QUERY, index, k=2)
+    result = build_grounded_answer(QUERY, index, top_k=2)
 
     assert retrieved
     assert result.refused is True

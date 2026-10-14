@@ -15,7 +15,7 @@ boundary-aware chunks
    ↓
 query tokenization
    ↓
-BM25 scores + title boost
+BM25 content/title rankings + rank fusion
    ↓
 sorted top-k chunks
    ↓
@@ -49,7 +49,7 @@ For overlap, the next chunk starts approximately `overlap` characters before the
 With the defaults:
 
 ```python
-DEFAULT_CHUNK_SIZE = 180
+DEFAULT_CHUNK_SIZE = 220
 DEFAULT_OVERLAP = 0
 ```
 
@@ -106,17 +106,19 @@ BM25_B = 0.75
 
 These are useful defaults, not universal best values. They should be evaluated on representative questions from the actual corpus.
 
-## 5. Title boost
+The `BM25Index` class tokenizes chunk text and titles and calculates document frequencies and average field lengths once. Reusing the index for later questions avoids rebuilding those corpus statistics on each query. The demo CLI builds one index after chunking and then uses it to answer.
+
+## 5. Combining content and title rankings
 
 Document titles contain useful metadata. For example, a chunk from a document titled `Chunking and Metadata` deserves a small extra signal for a question about chunking.
 
-The final score is:
+BM25 content and title scores are calculated independently because they have different distributions. Reciprocal rank fusion combines their orderings instead of adding the raw scores:
 
 ```text
-final score = BM25 content score + 0.25 × title similarity
+RRF score = 1 / (60 + content rank) + 0.01 / (60 + title rank)
 ```
 
-Title similarity uses binary cosine overlap. Its influence is intentionally small: the passage text remains the primary evidence, while the title helps break close comparisons.
+Only fields with a lexical match contribute to the fused score. Content determines the main ranking; the small title weight can help distinguish close results without overpowering a much stronger passage match. The result also retains the separate BM25 field scores and matched content terms for inspection. Fused scores are for ordering and should not be treated as probabilities.
 
 ## 6. Top-k selection
 

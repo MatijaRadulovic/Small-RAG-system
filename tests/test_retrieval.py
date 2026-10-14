@@ -1,5 +1,5 @@
 from src.chunking import Chunk
-from src.retrieval import bm25_scores, lexical_score, retrieve_top_k, tokenize
+from src.retrieval import BM25Index, bm25_scores, lexical_score, retrieve_top_k, tokenize
 
 
 def test_retrieve_top_k_orders_by_score_desc() -> None:
@@ -149,3 +149,56 @@ def test_retrieval_supports_serbian_tokens() -> None:
         language="sr",
     )
     assert results[0].chunk.chunk_id == "sr-1"
+
+
+def test_bm25_index_can_be_reused_for_multiple_queries() -> None:
+    chunks = [
+        Chunk(chunk_id="a", doc_id="1", title="RAG", text="retrieval evidence"),
+        Chunk(chunk_id="b", doc_id="2", title="Other", text="citation quality"),
+    ]
+    index = BM25Index(chunks)
+    first = retrieve_top_k("retrieval", index, k=1)
+    second = retrieve_top_k("citation", index, k=1)
+    assert first[0].chunk.chunk_id == "a"
+    assert second[0].chunk.chunk_id == "b"
+    assert index.vocabulary_size > 0
+    assert index.indexed_token_count == 4
+    assert index.average_chunk_length == 2
+
+
+def test_bm25_index_validates_parameters() -> None:
+    import pytest
+
+    chunks = [Chunk(chunk_id="a", doc_id="1", title="A", text="text")]
+    with pytest.raises(ValueError):
+        BM25Index(chunks, k1=0)
+    with pytest.raises(ValueError):
+        BM25Index(chunks, b=1.1)
+    with pytest.raises(ValueError):
+        retrieve_top_k("query", chunks, title_weight=1.1)
+    with pytest.raises(ValueError):
+        retrieve_top_k("query", chunks, min_score=-1)
+    with pytest.raises(ValueError):
+        retrieve_top_k("query", chunks, k=0)
+
+
+def test_rank_fusion_keeps_component_scores_separate() -> None:
+    chunks = [
+        Chunk(
+            chunk_id="a",
+            doc_id="1",
+            title="Chunking Guide",
+            text="Passages preserve surrounding context.",
+        ),
+        Chunk(
+            chunk_id="b",
+            doc_id="2",
+            title="Other Guide",
+            text="Passages preserve surrounding context.",
+        ),
+    ]
+    results = retrieve_top_k("chunking context", chunks, k=2)
+    assert results[0].chunk.chunk_id == "a"
+    assert results[0].content_score > 0
+    assert results[0].title_score > 0
+    assert results[0].score < 0.03

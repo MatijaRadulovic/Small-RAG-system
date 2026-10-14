@@ -4,7 +4,7 @@ import re
 from .corpus import Document
 
 
-DEFAULT_CHUNK_SIZE = 180
+DEFAULT_CHUNK_SIZE = 220
 DEFAULT_OVERLAP = 0
 SENTENCE_END_RE = re.compile(r"[.!?](?:[\"')\]]+)?(?=\s|$)")
 
