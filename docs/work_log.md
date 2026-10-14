@@ -394,3 +394,29 @@ Added `RagConfig` to validate chunking, retrieval, grounding thresholds, model s
 Why: repeat queries should not re-embed an unchanged corpus, and debug output needs enough retrieval detail to explain outcomes without copying sensitive text. A validated settings object prevents conflicting options from failing deep in the pipeline. Cache identity follows the actual chunk content and model, so changed documents produce a new entry.
 
 Verification: added tests for valid and invalid configuration, cache hits, content-based invalidation, corrupt-cache rebuild, and trace contents/privacy. `./scripts/run_tests.sh` reports 85 passed in `0.19s`. `python3 -m src.cli --question "What does the generator do with retrieved passages?" --debug` prints a JSON trace with chunk scores and retrieval/evidence timings; an unsupported query trace includes a refusal reason. An invalid overlap exits with `Invalid RAG configuration: overlap must be >= 0 and smaller than chunk_size`. Offline hybrid CLI reports `index_cache_status=hit` on the cached run. Repeated twice, `PYTHONPATH=. /tmp/rag-week6-phase7/bin/python -m scripts.benchmark_hybrid --embedding-cache /tmp/rag-week6-embedding-cache --index-cache /tmp/rag-week6-index-cache-phase10 --offline-embeddings --repeats 2` measured vector index build at `478.5/65.1 ms`, warm query means `72.95/73.10 ms`, model init `6572.1/6534.9 ms`, and peak RSS `697.0/683.5 MiB`. The planned book corpus is not present in this checkout, so that specific benchmark remains deferred; the script supports rerunning against current local configuration, and the bundled-corpus data is not treated as a book estimate. The optional FastEmbed runtime is isolated under `/tmp`; cache files are not tracked. Commit: `Add RAG observability and caching`.
+
+## Phase 11: Final Integration and Evidence Refresh
+
+Updated the beginner guide's architecture diagram to show lexical/semantic fusion, optional reranking, evidence filtering, the generator adapter, citation validation, and extractive fallback. Updated README structure and CLI examples, regenerated the homework evidence pair, and compared the final hybrid-plus-reranker stack against the Phase 6 lexical baseline. Recorded the unresolved multilingual grounding case and the absent book corpus as limitations rather than implying those paths are complete.
+
+Why: final documentation and metrics must describe the committed behavior a learner can reproduce. The clean-environment run checks that no undeclared development dependency is required; the held-out comparison keeps the last quality claim tied to the same fixed questions.
+
+Commands and results:
+
+```text
+python3 -m venv /tmp/rag-week6-phase11
+/tmp/rag-week6-phase11/bin/python -m pip install -r requirements.txt
+/tmp/rag-week6-phase11/bin/python -m pip install -r requirements-embeddings.txt
+/tmp/rag-week6-phase11/bin/python -m pytest -q
+85 passed in 0.23s
+/tmp/rag-week6-phase11/bin/python -m scripts.evaluate_rag --split heldout
+Recall@3=1.000; MRR=0.929; nDCG@3=0.947; source-span Recall@3=0.786; span MRR=0.714
+/tmp/rag-week6-phase11/bin/python -m scripts.check_hybrid --offline-embeddings --embedding-cache /tmp/rag-week6-embedding-cache
+PASS: five synonym/paraphrase/identifier/Serbian/mixed-language retrieval probes
+/tmp/rag-week6-phase11/bin/python -m scripts.generate_evidence
+PASS: supported citation and unsupported refusal cases
+/tmp/rag-week6-phase11/bin/python -m scripts.analyze_chunking
+recommended 220/0; hit@1=100%; hit@3=100%; MRR=1.000; 14 chunks
+```
+
+Final held-out comparison: `PYTHONPATH=. /tmp/rag-week6-phase11/bin/python -m scripts.compare_evaluation --split heldout --baseline-mode lexical --candidate-mode hybrid --baseline-size 220 --baseline-overlap 0 --candidate-size 220 --candidate-overlap 0 --candidate-rerank --candidate-k 14 --embedding-cache /tmp/rag-week6-embedding-cache --offline-embeddings`. Hybrid plus reranking compared with lexical improved MRR `0.929→1.000`, nDCG `0.947→1.000`, source-span Recall@3 `0.786→0.929`, and span MRR `0.714→0.929`; citation and refusal measures were unchanged. Phase 0's 180/0 tuning result (15 questions) and final 220/0 tuning result (10 versioned questions) both had 100% Hit@1/Hit@3 and MRR `1.000`, but use different question sets and are not directly comparable. Supported and unsupported CLI demos passed. `scripts.check_hybrid` passes five semantic retrieval probes. A Serbian-only CLI query was refused by the lexical grounding gate despite semantic retrieval; this is a known multilingual answer-grounding limitation. Unit tests verify prompt-injection and conflicting-evidence handling with a fake adapter; no live model generated an answer. `git grep` for model-token, credential, and local-download-path patterns and `git ls-files` for cache/secret paths returned no hits. The book corpus is absent, so book-specific measurement and content-aware chunking remain follow-ups. Commit: `Finalize improved RAG pipeline`.

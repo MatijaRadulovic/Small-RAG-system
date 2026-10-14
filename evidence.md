@@ -4,14 +4,14 @@ This evidence reflects the current sentence-aware chunker, reusable BM25 index, 
 
 ## 1. Outcome 1: Chunking impact
 
-- **Evaluation:** 42 `(chunk_size, overlap)` configurations, 15 fixed questions, `top_k=3`; relevance is judged by whether the expected source document appears at the specified rank.
+- **Evaluation:** 42 `(chunk_size, overlap)` configurations, 10 versioned tuning questions, `top_k=3`; relevance is judged by whether the expected source document appears at the specified rank.
 - **Config A:** `chunk_size=220`, `overlap=0`
   - Chunks: 14
-  - Hit@1: 93.3%; Hit@3: 100%; MRR: `0.967`
+  - Hit@1: 100%; Hit@3: 100%; MRR: `1.000`
 - **Config B:** `chunk_size=100`, `overlap=20`
   - Chunks: 36
-  - Hit@1: 86.7%; Hit@3: 100%; MRR: `0.922`
-- **Retrieval difference summary:** Both settings retrieve the expected source within the first three results for every query. `220/0` ranks the expected source first in 14 of 15 cases and creates fewer chunks, so it is the measured default for this corpus and query set. This is not a universal setting; a different corpus or evaluation set may favor other boundaries.
+  - Hit@1: 90%; Hit@3: 100%; MRR: `0.950`
+- **Retrieval difference summary:** Both settings retrieve the expected source within the first three results for every tuning query. `220/0` ranks the expected source first in all 10 cases and creates fewer chunks, so it is the measured default for this corpus and query set. This is not a universal setting; a different corpus or evaluation set may favor other boundaries.
 - **Reproduce:** `python3 -m scripts.analyze_chunking`
 
 ## 2. Outcome 2: Top-k retrieval
@@ -91,7 +91,7 @@ Refused: True
 
 The system refuses because the retrieved text does not answer the color or Mars part of the question.
 
-## Final Verification
+## Outcome 5 Verification at Original Submission Stage
 
 ```text
 ./scripts/run_tests.sh
@@ -189,3 +189,27 @@ Verification: `./scripts/run_tests.sh` reports 69 passed in `0.12s`; `python3 -m
 Run `python3 -m src.cli --question "What does the generator do with retrieved passages?" --debug` to print a request ID, selected chunk IDs, component scores, stage timings, and refusal status without echoing the query or passages inside the trace. `RagConfig` rejects invalid chunking/retrieval/grounding/model settings before pipeline construction. Hybrid mode stores vectors under `.cache/rag-index`, keyed by model and chunk-content fingerprint; bad entries rebuild and the cache can be used with `--offline-embeddings` after model files are present.
 
 On 14 chunks, a cold vector-cache benchmark took `478.5 ms` to build the semantic index; the next process loaded the cached vectors in `65.1 ms`. Mean query latency was `72.95/73.10 ms`, model initialization was `6572.1/6534.9 ms`, and peak RSS was `697.0/683.5 MiB`. Reproduce using the commands in `docs/rag_retrieval_guide.md` with an empty then populated `--index-cache`. The repository does not contain the planned book corpus, so these measurements describe only the bundled starter corpus. Unit tests cover reuse, invalidation after corpus edits, corrupted-cache recovery, invalid configuration, privacy-safe traces, and refusal reasons.
+
+## RAG Improvement Phase 11: Final Integration
+
+The final clean environment used a fresh `/tmp/rag-week6-phase11` virtual environment with `requirements.txt` and `requirements-embeddings.txt` installed. `python -m pytest -q` reports 85 passed in `0.23s`; `python -m scripts.evaluate_rag --split heldout` reproduces the Phase 6 lexical baseline.
+
+On the same 10 held-out cases, the final hybrid + reranker configuration compared with lexical `220/0` produces:
+
+| Metric | Lexical baseline | Hybrid + reranker | Change |
+| --- | ---: | ---: | ---: |
+| Recall@3 | 1.000 | 1.000 | +0.000 |
+| MRR | 0.929 | 1.000 | +0.071 |
+| nDCG@3 | 0.947 | 1.000 | +0.053 |
+| source-span Recall@3 | 0.786 | 0.929 | +0.143 |
+| source-span MRR | 0.714 | 0.929 | +0.214 |
+| citation precision | 1.000 | 1.000 | +0.000 |
+| citation span recall | 0.250 | 0.250 | +0.000 |
+| refusal precision | 0.375 | 0.375 | +0.000 |
+| refusal recall | 1.000 | 1.000 | +0.000 |
+
+The hybrid probes pass synonym, paraphrase, identifier, Serbian-to-English, and mixed-language retrieval checks. The supported CLI demo returns citation `doc-1@202:370`; the unsupported demo refuses without citations. A Serbian-only query can retrieve semantically but is then refused by the current lexical evidence gate because no meaningful query terms overlap the English passage. Prompt-injection and conflicting-source behavior are covered by tests using a deterministic generator adapter; no actual LLM backend is configured. This is an intentionally strict refusal, and multilingual answer grounding remains a known limitation.
+
+Chunking comparison: Phase 0 used 180/0 with 15 questions and reported 100% Hit@1/Hit@3 and MRR `1.000`; the final tuning split uses 220/0 with 10 versioned questions and also reports 100% Hit@1/Hit@3 and MRR `1.000` (14 chunks rather than 16). These are different evaluation sets, so the matching values do not establish a direct improvement. Phase 6's held-out lexical metrics and the final held-out hybrid/reranker metrics above are the comparable retrieval evaluation.
+
+The content-aware chunker and book-corpus benchmark remain follow-up work because this repository contains no book corpus. The current evaluation is a small regression set rather than a broad quality guarantee; lexical claim overlap is not semantic entailment.

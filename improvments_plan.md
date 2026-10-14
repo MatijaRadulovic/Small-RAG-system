@@ -173,15 +173,15 @@ The current answer decision checks the best result and may include weaker lower-
 
 ## Phase 11: Final Integration and Documentation
 
-- [ ] Run the entire unit and evaluation suite from a clean environment.
-- [ ] Run supported, unsupported, paraphrase, multilingual, and prompt-injection demonstrations.
-- [ ] Compare final metrics with the Phase 0 and Phase 6 baselines.
-- [ ] Update architecture diagrams and the beginner guide.
-- [ ] Update CLI help and examples for every new option.
-- [ ] Regenerate evidence with current chunk IDs and scores.
-- [ ] Record known limitations honestly, including cases where semantic retrieval still fails.
-- [ ] Confirm no private links, credentials, model tokens, or generated cache files are committed.
-- [ ] Commit as `Finalize improved RAG pipeline`.
+- [x] Run the entire unit and evaluation suite from a clean environment.
+- [x] Run supported, unsupported, paraphrase, multilingual, and prompt-injection demonstrations.
+- [x] Compare final metrics with the Phase 0 and Phase 6 baselines.
+- [x] Update architecture diagrams and the beginner guide.
+- [x] Update CLI help and examples for every new option.
+- [x] Regenerate evidence with current chunk IDs and scores.
+- [x] Record known limitations honestly, including cases where semantic retrieval still fails.
+- [x] Confirm no private links, credentials, model tokens, or generated cache files are committed.
+- [x] Commit as `Finalize improved RAG pipeline`.
 
 **Done when:** documentation, evidence, tests, metrics, and actual CLI behavior describe the same final system.
 
@@ -189,19 +189,20 @@ The current answer decision checks the best result and may include weaker lower-
 
 ### Milestone A: Reliable lexical RAG
 
-- [ ] Complete Phases 0–6.
-- [ ] Demonstrate traceable, diverse BM25 results with calibrated refusal behavior.
+- [x] Complete Phases 0–6.
+- [x] Demonstrate traceable, diverse BM25 results with calibrated refusal behavior.
 
 ### Milestone B: Hybrid retrieval
 
 - [x] Complete Phases 7–8.
-- [ ] Demonstrate a held-out improvement for paraphrases and semantic matches.
+- [x] Demonstrate a held-out improvement for paraphrases and semantic matches.
 
 ### Milestone C: Grounded generation
 
-- [ ] Complete Phases 9–11.
-- [ ] Demonstrate claim-level citations, injection resistance, reproducible evaluation, and documented operational behavior.
+- [ ] Complete Phases 9–11 (the book-corpus measurement in Phase 10 remains pending until that corpus is supplied).
+- [x] Demonstrate claim-level citations, prompt-injection handling, reproducible evaluation, and documented operational behavior.
 
-## Recommended Immediate Next Step
+## Recommended Follow-up
 
-- [ ] Complete Phase 0 before adding more retrieval features. The current BM25 and boundary-aware chunking changes alter scores and chunk IDs, so tests, thresholds, and homework evidence must be synchronized first.
+- [ ] Add the planned book corpus and rerun Phase 10 latency/memory measurements on it.
+- [ ] Add content-aware chunking and compare it with the current sentence-boundary chunker on labeled book questions.

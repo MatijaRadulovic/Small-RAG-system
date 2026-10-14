@@ -8,20 +8,27 @@ RAG means **retrieval augmented generation**. Before an answer is produced, the 
 
 The pipeline in this repository is:
 
-```text
-documents
-   ↓
-boundary-aware chunks
-   ↓
-query tokenization
-   ↓
-BM25 content/title rankings + rank fusion
-   ↓
-sorted top-k chunks
-   ↓
-evidence sufficiency check
-   ↓
-answer with citations, or refusal
+```mermaid
+flowchart TD
+  D[Documents] --> C[Boundary-aware chunks]
+  C --> L[BM25 content and title]
+  C --> V[Cached semantic vectors]
+  Q[Question] --> L
+  Q --> V
+  L --> F[Rank fusion]
+  V --> F
+  F --> O{Reranking enabled?}
+  O -->|Yes| R[Cross-encoder rerank]
+  O -->|No| U[Duplicate and source diversity]
+  R --> U
+  U --> E[Per-passage evidence check]
+  E -->|No sufficient evidence| X[Refusal]
+  E -->|Approved passages| A{Generator adapter?}
+  A -->|No| EX[Extractive cited answer]
+  A -->|Yes| G[Untrusted-context prompt]
+  G --> H[Citation and claim-overlap validation]
+  H -->|Invalid| EX
+  H -->|Valid| Y[Generated cited answer]
 ```
 
 Retrieval quality matters because the answer stage cannot cite evidence it never received.
@@ -223,7 +230,7 @@ python3 -m pip install -r requirements-embeddings.txt
 python3 -m src.cli --retrieval-mode hybrid --question "What does the generator do with retrieved passages?"
 ```
 
-The first run downloads the model; later runs can require cached files with `--offline-embeddings`. If the optional dependency or cached model is absent, lexical mode remains available. The held-out evaluation currently improves source-span Recall@3 from `0.786` to `0.929` while keeping document Recall@3, citation, and refusal metrics unchanged. Reproduce with `python3 -m scripts.compare_evaluation --split heldout --baseline-mode lexical --candidate-mode hybrid --baseline-size 220 --candidate-size 220 --baseline-overlap 0 --candidate-overlap 0`. Run `python3 -m scripts.check_hybrid` for synonym, paraphrase, exact-ID, Serbian, and mixed-language probes, and `python3 -m scripts.benchmark_hybrid` for local runtime and memory measurements.
+The first run downloads the model; later runs can require cached files with `--offline-embeddings`. If the optional dependency or cached model is absent, lexical mode remains available. The held-out evaluation currently improves source-span Recall@3 from `0.786` to `0.929` while keeping document Recall@3, citation, and refusal metrics unchanged. Reproduce with `python3 -m scripts.compare_evaluation --split heldout --baseline-mode lexical --candidate-mode hybrid --baseline-size 220 --candidate-size 220 --baseline-overlap 0 --candidate-overlap 0`. Run `python3 -m scripts.check_hybrid` for synonym, paraphrase, exact-ID, Serbian, and mixed-language probes, and `python3 -m scripts.benchmark_hybrid` for local runtime and memory measurements. The semantic retrieval probes include Serbian-to-English success, but the later grounding check still uses lexical overlap; the answer layer can therefore refuse a cross-language result when no words overlap.
 
 ## 13. Optional cross-encoder reranking
 

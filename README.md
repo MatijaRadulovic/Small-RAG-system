@@ -5,6 +5,7 @@ This starter app helps students practice Week 6 concepts from the RAG lecture:
 - corpus preparation
 - chunking with overlap
 - simple retrieval
+- hybrid BM25 and local semantic retrieval, with optional cross-encoder reranking
 - answer generation with citations
 - refusal behavior when evidence is missing
 - per-passage evidence checks that filter weak results before citation
@@ -28,19 +29,41 @@ rag-week-6-homework-starter/
     corpus.py
     chunking.py
     retrieval.py
+    embeddings.py
+    hybrid_retrieval.py
+    reranking.py
+    generation.py
+    config.py
+    index_cache.py
     rag.py
     cli.py
+    observability.py
   tests/
     test_chunking.py
     test_retrieval.py
+    test_hybrid_retrieval.py
+    test_reranking.py
     test_rag.py
+    test_config.py
   docs/
     homework-checklist.md
+    evaluation_policy.md
+    rag_retrieval_guide.md
   scripts/
     analyze_chunking.py
     check_retrieval.py
+    check_hybrid.py
+    evaluate_rag.py
+    compare_evaluation.py
+    benchmark_retrieval.py
+    benchmark_hybrid.py
+    benchmark_reranking.py
+    generate_evidence.py
     run_tests.sh
+  data/
+    rag_eval_v1.jsonl
   requirements.txt
+  requirements-embeddings.txt
 ```
 
 ## Setup
@@ -88,6 +111,8 @@ python3 -m src.cli --question "Who won the world cup in 1958?"
 python3 -m src.cli --corpus-profile training-rag --question "Why are citations important in RAG?"
 python3 -m src.cli --language sr --question "Koji dokument sadrži relevantne podatke?"
 ```
+
+`python3 -m src.cli --help` lists configuration options. Key controls include `--chunk-size`, `--overlap`, `--top-k`, `--retrieval-mode`, `--rerank`, `--candidate-k`, `--max-per-source`, `--language`, `--index-cache`, `--offline-embeddings`, and `--debug`.
 
 Hybrid retrieval and cross-encoder reranking are optional. Install their local ONNX runtime with `python3 -m pip install -r requirements-embeddings.txt`. The first run downloads selected models; later runs can use `--offline-embeddings` and `--embedding-cache PATH`. Reranking scores a broader first-stage candidate set (`--candidate-k`) against the full question, then returns the highest-scoring diverse chunks. See `docs/rag_retrieval_guide.md` for evaluation and latency measurements.
 
