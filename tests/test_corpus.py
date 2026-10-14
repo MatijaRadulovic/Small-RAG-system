@@ -19,3 +19,9 @@ def test_load_training_rag_corpus_has_expected_topic() -> None:
 def test_unknown_profile_raises() -> None:
     with pytest.raises(ValueError):
         load_corpus("unknown-profile")
+
+
+def test_default_corpus_contains_long_documents_for_chunking_experiments() -> None:
+    docs = load_corpus("default")
+    assert len(docs) >= 5
+    assert all(len(doc.text) >= 300 for doc in docs)

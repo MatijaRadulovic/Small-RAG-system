@@ -3,6 +3,10 @@ from dataclasses import dataclass
 from .corpus import Document
 
 
+DEFAULT_CHUNK_SIZE = 100
+DEFAULT_OVERLAP = 20
+
+
 @dataclass(frozen=True)
 class Chunk:
     chunk_id: str
@@ -11,7 +15,11 @@ class Chunk:
     text: str
 
 
-def split_text_with_overlap(text: str, chunk_size: int = 140, overlap: int = 30) -> list[str]:
+def split_text_with_overlap(
+    text: str,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_OVERLAP,
+) -> list[str]:
     if chunk_size <= 0:
         raise ValueError("chunk_size must be > 0")
     if overlap < 0:
@@ -39,7 +47,11 @@ def split_text_with_overlap(text: str, chunk_size: int = 140, overlap: int = 30)
     return chunks
 
 
-def build_chunks(documents: list[Document], chunk_size: int = 140, overlap: int = 30) -> list[Chunk]:
+def build_chunks(
+    documents: list[Document],
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_OVERLAP,
+) -> list[Chunk]:
     chunks: list[Chunk] = []
     for doc in documents:
         parts = split_text_with_overlap(doc.text, chunk_size=chunk_size, overlap=overlap)

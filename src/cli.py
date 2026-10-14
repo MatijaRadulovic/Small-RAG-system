@@ -1,6 +1,6 @@
 import argparse
 
-from .chunking import build_chunks
+from .chunking import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, build_chunks
 from .corpus import list_corpus_profiles, load_corpus
 from .rag import build_grounded_answer
 
@@ -8,8 +8,18 @@ from .rag import build_grounded_answer
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Week 6 RAG homework starter")
     parser.add_argument("--question", required=True, help="Question to ask over the local corpus")
-    parser.add_argument("--chunk-size", type=int, default=140, help="Chunk size in characters")
-    parser.add_argument("--overlap", type=int, default=30, help="Chunk overlap in characters")
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=DEFAULT_CHUNK_SIZE,
+        help=f"Chunk size in characters (default: {DEFAULT_CHUNK_SIZE})",
+    )
+    parser.add_argument(
+        "--overlap",
+        type=int,
+        default=DEFAULT_OVERLAP,
+        help=f"Chunk overlap in characters (default: {DEFAULT_OVERLAP})",
+    )
     parser.add_argument("--top-k", type=int, default=2, help="Number of retrieved chunks")
     parser.add_argument(
         "--corpus-profile",

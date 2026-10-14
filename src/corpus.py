@@ -19,23 +19,56 @@ def load_default_corpus() -> list[Document]:
             title="RAG Fundamentals",
             text=(
                 "Retrieval augmented generation combines retrieval with text generation. "
-                "The model should answer using retrieved evidence rather than unsupported assumptions."
+                "Before answering, the retriever searches an indexed knowledge base and selects passages "
+                "that are relevant to the user's question. The generator then uses those passages as its "
+                "context. This design lets an application use current or domain-specific information without "
+                "retraining the language model. The model should answer using retrieved evidence rather than "
+                "unsupported assumptions, and each important claim should be traceable to a source."
             ),
         ),
         Document(
             doc_id="doc-2",
             title="Chunking and Metadata",
             text=(
-                "Chunking splits documents into smaller parts. Good chunk size and overlap improve retrieval quality. "
-                "Metadata helps filtering and source traceability."
+                "Chunking splits long documents into smaller passages that can be searched independently. "
+                "A chunk that is too small may separate a claim from its explanation, while a chunk that is "
+                "too large may mix unrelated topics and dilute similarity. Overlap repeats a small amount of "
+                "text at adjacent boundaries so a sentence is less likely to lose its context. Good chunk size "
+                "and overlap therefore improve retrieval quality. Metadata such as document ID, title, and "
+                "section supports filtering, citations, and source traceability."
             ),
         ),
         Document(
             doc_id="doc-3",
             title="Refusal Behavior",
             text=(
-                "If retrieved context does not support a claim, the system should refuse and ask for better evidence. "
-                "This reduces hallucinations and increases trust."
+                "A grounded assistant must compare the question with the evidence returned by retrieval. If "
+                "the retrieved context is empty, irrelevant, or does not support a requested claim, the system "
+                "should refuse and ask for better evidence. A consistent refusal explains that the available "
+                "corpus is insufficient instead of inventing an answer from general model knowledge. This "
+                "reduces hallucinations and increases trust because users can distinguish supported answers "
+                "from missing information."
+            ),
+        ),
+        Document(
+            doc_id="doc-4",
+            title="Retrieval Evaluation",
+            text=(
+                "Retrieval evaluation starts with questions whose relevant source documents are known. Hit rate "
+                "checks whether a relevant result appears in the returned set. Mean reciprocal rank gives more "
+                "credit when the first relevant result appears near the top. A top-k pipeline must return no more "
+                "than k chunks and order them from highest to lowest similarity. Comparing several representative "
+                "queries is more reliable than selecting settings from a single example."
+            ),
+        ),
+        Document(
+            doc_id="doc-5",
+            title="Citation Quality",
+            text=(
+                "Citations connect generated statements to retrieved chunks. Citation identifiers should match "
+                "the chunk IDs supplied to the answer generator, and the cited text should actually support the "
+                "claim. Clear references let a reader inspect the evidence and find the original document. A "
+                "citation is not sufficient by itself: correctness and completeness must also be checked."
             ),
         ),
     ]
